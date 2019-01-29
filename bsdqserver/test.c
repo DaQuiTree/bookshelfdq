@@ -10,10 +10,12 @@ typedef union{
 int main()
 {
     love_un c;
-    char abc[17] = "我爱小花";
-    printf("%s %d\n", abc, strlen(abc));
+    char str[16]="";
+    int a = -32760;
+
     c.b = 10;
     printf("%d\n",c.b);
     c.a = 'c';
     printf("%c\n", c.a);
+    printf("%d %d\n", a, -a);
 }

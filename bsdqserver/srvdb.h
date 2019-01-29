@@ -3,7 +3,6 @@
 
 #include "clisrv.h"
 
-
 int srvdb_init(void);
 int srvdb_connect(const char* hostname, unsigned int port);
 int srvdb_user_archive_init(const char* username);

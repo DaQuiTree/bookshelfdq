@@ -3,16 +3,14 @@
 
 
 //书相关定义
-#define MAX_BOOK_NUM (0xFFF0)
+#define MAX_BOOK_NUM (10000)
 #define BOOK_NAME_LEN (64*3) //UTF-8中文占用3个字节 
 #define AUTHOR_NAME_LEN (32*3)
 #define MAX_LABEL_NUM (10)
 #define LABEL_NAME_LEN (6*3)
 
-typedef unsigned char qbyte_t;
-
 typedef {
-    qbyte_t code[4];
+    int  code[4];
     char name[BOOK_NAME_LEN+1];
     char author[AUTHER_NAME_LEN+1];
     char label[MAX_LABEL_NUM*LABEL_NAME_LEN+1]; 
@@ -28,7 +26,7 @@ typedef {
 #define MAX_DEPTH (5)
 
 typedef {
-    qbyte_t code;
+    int code;
     char name[SHELF_NAME_LEN+1];
     int floors_of_shelf;//书架层数
     int depth_of_floor[MAX_DEPTH];//层深度
@@ -60,6 +58,17 @@ typedef struct {
     server_response_e   response;
     char                error_text[ERR_TEXT_LEN+1];
 }message_cs_t; 
+
+//检索相关
+#define DEFAULT_FINDS (10)
+#define NON_SENSE_INT (0)
+#define NON_SENSE_STR ('\0')
+#define FIND_FLAG_INT (-32700)
+
+//全局定义
+#define BOOK_AVL (0)
+#define BOOK_DEL (1)
+#define BOOK_UNDEF (2)
 
 #endif
 
