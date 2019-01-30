@@ -28,8 +28,8 @@ typedef {
 typedef {
     int code;
     char name[SHELF_NAME_LEN+1];
-    int floors_of_shelf;//书架层数
-    int depth_of_floor[MAX_DEPTH];//层深度
+    int  nfloors;//书架层数
+    int  ndepth[MAX_FLOORS];//层深度
     char building_time[64]
 }shelf_entry_t;
 

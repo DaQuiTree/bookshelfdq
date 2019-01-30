@@ -8,6 +8,10 @@
 
 
 static MYSQL my_connection;
+//和检索相关静态变量
+static MYSQL_RES *res_ptr = NULL;
+static int field_cnt = 0;
+
 static const char *my_user = "bsdq";
 static const char *my_passwd = "bsdq";
 static const char *my_bsdq_db = "bsdq_db";
@@ -240,7 +244,7 @@ int srvdb_book_update(message_cs_t *msg)
     return(0);
 }
 
-int srvdb_book_find(message_cs_t *msg, MYSQL_RES *res_ptr)
+int srvdb_book_find(message_cs_t *msg, int *num_rows)
 {
     char table_name[128];
     char is[1024];
@@ -293,7 +297,7 @@ int srvdb_book_find(message_cs_t *msg, MYSQL_RES *res_ptr)
 #if DEBUG_TRACE
                         fprintf(stderr, "find() name search str format error.\n");
 #endif
-                        return(-1);
+                        return(0);
                         break;
                 }
 
@@ -315,7 +319,7 @@ int srvdb_book_find(message_cs_t *msg, MYSQL_RES *res_ptr)
 #if DEBUG_TRACE
                         fprintf(stderr, "find() author search str format error.\n");
 #endif
-                        return(-1);
+                        return(0);
                         break;
                 }
 
@@ -337,7 +341,7 @@ int srvdb_book_find(message_cs_t *msg, MYSQL_RES *res_ptr)
 #if DEBUG_TRACE
                         fprintf(stderr, "find() label search str format error.\n");
 #endif
-                        return(-1);
+                        return(0);
                         break;
                 }
 
@@ -353,7 +357,6 @@ int srvdb_book_find(message_cs_t *msg, MYSQL_RES *res_ptr)
 
     //检索
     int res;
-    int num_rows;
     
     res = mysql_query(&my_connection, is);
     if (res){
@@ -362,16 +365,156 @@ int srvdb_book_find(message_cs_t *msg, MYSQL_RES *res_ptr)
 #endif
     }else{
         res_ptr = mysql_store_result(&my_connection);
-        num_rows = mysql_num_rows(res_ptr);
-        return(num_rows); 
+        if(res_ptr){
+            *num_rows = mysql_num_rows(res_ptr);
+            field_cnt = mysql_field_count(&my_connection);
+#if DEBUG_TRACE
+            fprintf(stderr, "find(): %d rows with %d columns\n", *num_rows, field_cnt);
+#endif
+            return(1); 
+        }
     }
-    return(-1);
+    return(0);
 }
 
-int srvdb_book_get(message_cs_t *msg);
+int srvdb_book_fetch_result(message_cs_t *msg)
+{
+    MYSQL_ROW sqlrow;
+    int i = 0;
 
-int srvdb_shelf_insert(message_cs_t *msg);
-int srvdb_shelf_get(message_cs_t *msg);
+    sqlrow = mysql_fetch_row(res_ptr);
+    if (mysql_errno(&my_connection)){
+#if DEBUG_TRACE
+        fprintf(stderr, "Retrive error: %s\n", mysql_error(&my_connection));
+#endif
+        return(-1);
+    }
+    if (sqlrow == NULL)return(0);
+    sscanf(sqlrow[i++], "%d", &msg->stuff.book.shelfno);
+    sscanf(sqlrow[i++], "%d", &msg->stuff.book.floorno);
+    sscanf(sqlrow[i++], "%d", &msg->stuff.book.bookno);
+    strcpy(msg->stuff.book.name, sqlrow[i++]);
+    strcpy(msg->stuff.book.author, sqlrow[i++]);
+    strcpy(msg->stuff.book.label, sqlrow[i++]);
+    sscanf(sqlrow[i++], "%d", &msg->stuff.book.borrowed);
+    sscanf(sqlrow[i++], "%d", &msg->stuff.book.on_reading);
+    sscanf(sqlrow[i++], "%d", &msg->stuff.book.cleaned);
+    strcpy(msg->stuff.book.encoding_time, sqlrow[i++]);
+    if (i != field_cnt)
+    {
+        return(-1);
+#if DEBUG_TRACE
+        fprintf(stderr, "fetch() error: field_cnt didn't match while copying data\n");
+#endif
+    }
+    return(1);
+}
+
+int srvdb_book_free_result(void);
+{
+    mysql_free_result(res_ptr);
+    res_ptr = NULL;
+    field_cnt = 0;
+}
+
+
+//
+// 以下是关于书架的MYSQL封装
+//
+
+int srvdb_shelf_insert(message_cs_t *msg)
+{
+    char table_name[128];
+    char es_name[SHELF_NAME_LEN+1];
+    char floor_depth_str[MAX_FLOORS*2+1];
+    char is[1024];
+    char temp_str[512];
+    int i = 0;
+
+    if (msg->user[0] = '\0'){
+#if DEBUG_TRACE
+        fprintf(stderr, "insert shelf error: user undefined.\n");
+#endif
+        return(0);
+    }
+
+    sprintf(table_name, "%s_shelves", msg->user);
+    for ( i = 0; i < 2*msg->stuff.shelf.nfloors; i+=2)
+    {
+        floor_depth_str[i] = msg->stuff.shelf.ndepth[i];
+        floor_depth_str[i+1] = ','; 
+    }
+    floor_depth_str[i+1] = '\0';
+    
+    //保护字符串中的特殊字符
+    mysql_escape_string(es_name, msg->stuff.shelf.name, strlen(msg->stuff.shelf.name));
+
+    //查找最小的可用的书籍编号
+    sprintf(is, "SELECT MIN(bookno) FROM %s WHERE cleaned=%d", table_name, BOOK_DEL);
+    res = mysql_query(&my_connection, is);//在废弃编号里查找
+    if(!res) {
+       if (get_simple_result(&my_connection, temp_str)){
+            if(temp_str != NULL){ //有废弃的可用编号
+                sscanf(temp_str, "%d", &bookno_used);
+                sprintf(is, "UPDATE %s SET cleaned=%d,shelfno=%d,floorno=%d,name='%s',author='%s',\
+                        label='%s',borrowed=%d,on_reading=%d,encoding_time='%s' WHERE bookno=%d",\
+                        table_name, BOOK_AVL, shelfno_save, floorno_save, es_name, es_author, es_label,\
+                        msg->stuff.book.borrowed, msg->stuff.book.on_reading, msg->stuff.book.encoding_time, bookno_used);
+                res = mysql_query(&my_connection, is);
+                if(!res){
+                    if(my_sql_affected_rows(&my_connection) == 1){
+                        msg->stuff.book.code[2] = bookno_used;
+                        return(1);
+                    }
+                }else{
+#if DEBUG_TRACE
+                    fprintf(stderr, "Insert book UPDATE error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
+#endif
+                }
+            }
+        }
+    }else{
+#if DEBUG_TRACE
+        fprintf(stderr, "SELECT MIN(bookno) error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
+#endif
+    }
+
+    //直接插入并自动分配编号
+    sprintf(is, "SELECT MAX(bookno) FROM %s", table_name);
+    res = mysql_query(&my_connection, is);//查看编号是否超出最大值
+    if(!res) {
+        if(get_simple_result(&my_connection, temp_str));
+            if(temp_str[0] != '\0'){
+                sscanf(sqlrow[0], "%d", &bookno_used);
+                if(bookno_used >= MAX_BOOK_NUM){
+                    sprintf(msg->error_test, "Insert book failed: book number reached MAX.");
+                    return(0);
+                }
+            }
+        }else{
+#if DEBUG_TRACE
+        fprintf(stderr, "SELECT MAX(bookno)error: get_simple_result()\n");
+#endif
+            return(0);
+        }
+    }else{
+#if DEBUG_TRACE
+        fprintf(stderr, "SELECT MAX(bookno) error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
+#endif
+        return(0);
+    }
+         
+    sprintf(is, "INSERT INTO %s(shelfno, floorno, name, author, label, borrowed, on_reading, cleaned, encoding_time)\
+            VALUES(%d, %d, '%s', '%s', '%s', %d, %d, %d, '%s')", table_name, shelfno_save, \
+            floorno_save, es_name, es_author, es_label, msg->stuff.book.borrowed, \
+            msg->stuff.book.on_reading, BOOK_AVL, msg->stuff.book.encoding_time);
+    res = mysql_query(&my_connection, is);
+    if(!res)return(1);
+#if DEBUG_TRACE
+        fprintf(stderr, "INSERT INTO book error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
+#endif
+
+}
 int srvdb_shelf_delte(message_cs_t *msg);
 int srvdb_shelf_update(message_cs_t *msg);
 int srvdb_shelf_find(message_cs_t *msg);
