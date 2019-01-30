@@ -12,11 +12,14 @@ int srvdb_book_delte(message_cs_t *msg);
 int srvdb_book_update(message_cs_t *msg);
 int srvdb_book_find(message_cs_t *msg, int *num_rows);
 int srvdb_book_fetch_result(message_cs_t *msg);
-int srvdb_book_free_result(void);
 
 int srvdb_shelf_insert(message_cs_t *msg);
 int srvdb_shelf_delte(message_cs_t *msg);
 int srvdb_shelf_update(message_cs_t *msg);
-int srvdb_shelf_find(message_cs_t *msg, int *field_cnt);
+int srvdb_shelf_find(message_cs_t *msg, int *num_rows);
+int srvdb_shelf_fetch_result(message_cs_t *msg);
+
+//检索相关的通用函数
+int srvdb_free_result(void);
 
 #endif

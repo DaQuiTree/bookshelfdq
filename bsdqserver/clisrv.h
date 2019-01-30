@@ -10,27 +10,27 @@
 #define LABEL_NAME_LEN (6*3)
 
 typedef {
-    int  code[4];
+    int  code[3];
     char name[BOOK_NAME_LEN+1];
     char author[AUTHER_NAME_LEN+1];
     char label[MAX_LABEL_NUM*LABEL_NAME_LEN+1]; 
-    int  borrowed;
-    int  on_reading;
-    char encoding_time[64];
+    char borrowed;
+    char  on_reading;
+    char encoding_time[20];
 }book_entry_t;
 
 //书架相关定义
 #define MAX_SHELF_NUM (0x10)
 #define SHELF_NAME_LEN (64*3)
-#define MAX_FLOORS (10)
+#define MAX_FLOORS (0x0F)
 #define MAX_DEPTH (5)
 
 typedef {
     int code;
     char name[SHELF_NAME_LEN+1];
-    int  nfloors;//书架层数
-    int  ndepth[MAX_FLOORS];//层深度
-    char building_time[64]
+    unsigned char nfloors;//书架层数
+    unsigned char ndepth[MAX_FLOORS];//层深度
+    char building_time[20]
 }shelf_entry_t;
 
 //socket通讯相关
@@ -63,12 +63,15 @@ typedef struct {
 #define DEFAULT_FINDS (10)
 #define NON_SENSE_INT (0)
 #define NON_SENSE_STR ('\0')
-#define FIND_FLAG_INT (-32700)
+#define FIND_FLAG_CHAR (-1)
 
 //全局定义
 #define BOOK_AVL (0)
 #define BOOK_DEL (1)
 #define BOOK_UNDEF (2)
+
+#define SHELF_AVL (0)
+#define SHELF_DEL (1)
 
 #endif
 
