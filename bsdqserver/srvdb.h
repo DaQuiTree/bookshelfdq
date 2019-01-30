@@ -20,6 +20,6 @@ int srvdb_shelf_find(message_cs_t *msg, int *num_rows);
 int srvdb_shelf_fetch_result(message_cs_t *msg);
 
 //检索相关的通用函数
-int srvdb_free_result(void);
+void srvdb_free_result(void);
 
 #endif
