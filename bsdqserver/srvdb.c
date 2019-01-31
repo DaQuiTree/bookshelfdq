@@ -60,6 +60,11 @@ int srvdb_connect(const char* hostname, unsigned int port)
 #endif
         return(0);
     }
+    if (mysql_set_character_set(&my_connection, "utf8")){
+#if DEBUG_TRACE
+        fprintf(stderr, "mysql set utf8 error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
+#endif
+    }
     return(1);
 }
 
@@ -179,9 +184,10 @@ int srvdb_book_insert(message_cs_t *msg)
             }
         }else{
 #if DEBUG_TRACE
-        fprintf(stderr, "SELECT MAX(bookno)error: get_simple_result()\n");
+            fprintf(stderr, "SELECT MAX(bookno)error: get_simple_result()\n");
 #endif
-            return(0);
+            //书籍表为空
+            bookno_used = 0; 
         }
     }else{
 #if DEBUG_TRACE
@@ -291,7 +297,7 @@ int srvdb_book_find(message_cs_t *msg, int *num_rows)
 
     char symbol = '=';
     if(shelfno_save == NON_SENSE_INT) symbol = '>';//全局搜索?
-    if (msg->stuff.book.borrowed == BOOK_UNDEF && msg->stuff.book.on_reading == BOOK_UNDEF)
+    if (msg->stuff.book.borrowed == FLAG_FIND_UNDEF && msg->stuff.book.on_reading == FLAG_FIND_UNDEF)
     {   //查询未归档的图书
         sprintf(is, "SELECT * FROM %s WHERE cleaned=%d and shelfno%c%d and bookno>%d ORDER BY bookno LIMIT %d",\
                 table_name, BOOK_UNDEF, symbol, shelfno_save, bookno_start, DEFAULT_FINDS); 
@@ -308,7 +314,7 @@ int srvdb_book_find(message_cs_t *msg, int *num_rows)
                 //指定书号查询
                 sprintf(is, "SELECT * FROM %s WHERE bookno=%d", table_name, -bookno_start);
             }else{
-                //书名[0]：'-'模糊查找,'+'半精确查找,'='精确查找
+                //书名[0]：'0'忽略,'-'模糊查找,'+'半精确查找,'='精确查找
                 mysql_escape_string(es_temp, msg->stuff.book.name+1, strlen(msg->stuff.book.name)-1);//保护字符串中的特殊字符
                 switch (msg->stuff.book.name[0])
                 {
@@ -328,7 +334,7 @@ int srvdb_book_find(message_cs_t *msg, int *num_rows)
                         break;
                 }
 
-                //作者[0]：'-'模糊查找,'+'半精确查找,'='精确查找
+                //作者[0]：'0'忽略,'-'模糊查找,'+'半精确查找,'='精确查找
                 mysql_escape_string(es_temp, msg->stuff.book.author+1, strlen(msg->stuff.book.author)-1);
                 switch (msg->stuff.book.author[0])
                 {
@@ -350,7 +356,7 @@ int srvdb_book_find(message_cs_t *msg, int *num_rows)
                         break;
                 }
 
-                //标签[0]：'-'模糊查找,'+'半精确查找,'='精确查找
+                //标签[0]：'0'忽略,'-'模糊查找,'+'半精确查找,'='精确查找
                 mysql_escape_string(es_temp, msg->stuff.book.label+1, strlen(msg->stuff.book.label)-1);
                 switch (msg->stuff.book.label[0])
                 {
@@ -376,8 +382,8 @@ int srvdb_book_find(message_cs_t *msg, int *num_rows)
                 if (floorno_save != NON_SENSE_INT && shelfno_save != NON_SENSE_INT)sprintf(floor_sql, " and floorno=%d ", floorno_save);//按层检索时要保证指定了书架
 
                 //生产SQL语句
-                sprintf(is, "SELECT * FROM %s WHERE shelfno%c%d bookno>%d %s%s%s%s ORDER BY bookno LIMIT %d",\
-                        table_name, symbol, shelfno_save, bookno_start, floor_sql, es_name_sql, es_author_sql, es_label_sql, DEFAULT_FINDS);
+                sprintf(is, "SELECT * FROM %s WHERE shelfno%c%d AND cleaned=%d AND bookno>%d %s%s%s%s ORDER BY bookno LIMIT %d",\
+                        table_name, symbol, shelfno_save, BOOK_AVL, bookno_start, floor_sql, es_name_sql, es_author_sql, es_label_sql, DEFAULT_FINDS);
             }
         }
     }
@@ -520,9 +526,9 @@ int srvdb_shelf_insert(message_cs_t *msg)
             }
         }else{
 #if DEBUG_TRACE
-        fprintf(stderr, "SELECT MAX(shelfno)error: get_simple_result()\n");
+            fprintf(stderr, "SELECT MAX(shelfno)error: get_simple_result()\n");
 #endif
-            return(0);
+            shelfno_used = 0;
         }
     }else{
 #if DEBUG_TRACE
@@ -624,9 +630,9 @@ int srvdb_shelf_find(message_cs_t *msg, int *num_rows)
     shelfno_find = msg->stuff.shelf.code; 
 
     if (shelfno_find == NON_SENSE_INT){
-        sprintf(is, "SELECT * FROM %s", table_name); //查找所有书架信息
+        sprintf(is, "SELECT * FROM %s WHERE cleaned=%d", table_name, SHELF_AVL); //查找所有书架信息
     }else{
-        sprintf(is, "SELECT * FROM %s WHERE shelfno=%d", table_name, shelfno_find); //查找指定书架信息
+        sprintf(is, "SELECT * FROM %s WHERE shelfno=%d AND cleaned=%d", table_name, shelfno_find, SHELF_AVL); //查找指定书架信息
     }
     
     int res;

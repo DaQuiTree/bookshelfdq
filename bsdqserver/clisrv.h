@@ -3,7 +3,7 @@
 
 
 //书相关定义
-#define MAX_BOOK_NUM (10000)
+#define MAX_BOOK_NUM (36)
 #define BOOK_NAME_LEN (64*3) //UTF-8中文占用3个字节 
 #define AUTHOR_NAME_LEN (32*3)
 #define MAX_LABEL_NUM (10)
@@ -64,9 +64,9 @@ typedef struct{
 //检索相关
 #define DEFAULT_FINDS (10)
 #define NON_SENSE_INT (0)
-#define NON_SENSE_STR ('\0')
 #define FLAG_BORROWED (1)
 #define FLAG_ON_READING (1)
+#define FLAG_FIND_UNDEF (2)
 
 //全局定义
 #define BOOK_AVL (0)

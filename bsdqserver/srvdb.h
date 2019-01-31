@@ -8,13 +8,13 @@ int srvdb_connect(const char* hostname, unsigned int port);
 int srvdb_user_archive_init(const char* username);
 
 int srvdb_book_insert(message_cs_t *msg);
-int srvdb_book_delte(message_cs_t *msg);
+int srvdb_book_delete(message_cs_t *msg);
 int srvdb_book_update(message_cs_t *msg);
 int srvdb_book_find(message_cs_t *msg, int *num_rows);
 int srvdb_book_fetch_result(message_cs_t *msg);
 
 int srvdb_shelf_insert(message_cs_t *msg);
-int srvdb_shelf_delte(message_cs_t *msg);
+int srvdb_shelf_delete(message_cs_t *msg);
 int srvdb_shelf_update(message_cs_t *msg);
 int srvdb_shelf_find(message_cs_t *msg, int *num_rows);
 int srvdb_shelf_fetch_result(message_cs_t *msg);
