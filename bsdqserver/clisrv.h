@@ -20,7 +20,7 @@ typedef struct{
 }book_entry_t;
 
 //书架相关定义
-#define MAX_SHELF_NUM (0x10)
+#define MAX_SHELF_NUM (0x0F)
 #define SHELF_NAME_LEN (64*3)
 #define MAX_FLOORS (0x0F)
 #define MAX_DEPTH (5)

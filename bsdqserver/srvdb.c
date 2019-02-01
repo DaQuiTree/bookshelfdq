@@ -474,7 +474,7 @@ int srvdb_shelf_insert(message_cs_t *msg)
     sprintf(table_name, "%s_shelves", msg->user);
     for ( i = 0; i < msg->stuff.shelf.nfloors; i++)
     {
-        floor_depth_str[2*i] = msg->stuff.shelf.ndepth[i];
+        floor_depth_str[2*i] = msg->stuff.shelf.ndepth[i] + '0';
         floor_depth_str[2*i+1] = ','; 
     }
     floor_depth_str[2*i-1] = '\0';
@@ -519,7 +519,7 @@ int srvdb_shelf_insert(message_cs_t *msg)
         if(get_simple_result(&my_connection, temp_str)){
             if(temp_str[0] != '\0'){
                 sscanf(temp_str, "%d", &shelfno_used);
-                if(shelfno_used >= MAX_BOOK_NUM){
+                if(shelfno_used >= MAX_SHELF_NUM){
                     sprintf(msg->error_text, "Insert shelf failed: shelf number reached MAX.");
                     return(0);
                 }
@@ -537,7 +537,7 @@ int srvdb_shelf_insert(message_cs_t *msg)
         return(0);
     }
          
-    sprintf(is, "INSERT INTO %s(shelfno, name, nfloor, floor_depth, cleaned, building_time)\
+    sprintf(is, "INSERT INTO %s(shelfno, name, nfloors, floor_depth, cleaned, building_time)\
             VALUES(%d, '%s', %d, '%s', %d, '%s')", table_name, shelfno_used+1, es_name, msg->stuff.shelf.nfloors,\
             floor_depth_str, SHELF_AVL, msg->stuff.shelf.building_time);
     res = mysql_query(&my_connection, is);
@@ -548,7 +548,7 @@ int srvdb_shelf_insert(message_cs_t *msg)
     return(0);
 }
 
-int srvdb_shelf_delte(message_cs_t *msg)
+int srvdb_shelf_delete(message_cs_t *msg)
 {
     char table_name[128];
     char is[1024];
@@ -591,7 +591,7 @@ int srvdb_shelf_update(message_cs_t *msg)
 
     for ( i = 0; i < msg->stuff.shelf.nfloors; i++)
     {
-        floor_depth_str[2*i] = msg->stuff.shelf.ndepth[i];
+        floor_depth_str[2*i] = msg->stuff.shelf.ndepth[i] + '0';
         floor_depth_str[2*i+1] = ','; 
     }
     floor_depth_str[2*i-1] = '\0';
@@ -671,17 +671,18 @@ int srvdb_shelf_fetch_result(message_cs_t *msg)
     if (sqlrow == NULL)return(0);
     sscanf(sqlrow[i++], "%d", &msg->stuff.shelf.code);
     strcpy(msg->stuff.shelf.name, sqlrow[i++]);
-    sscanf(sqlrow[i++], "%c", &msg->stuff.shelf.nfloors);
+    msg->stuff.shelf.nfloors = sqlrow[i++][0] - '0';
     for (j = 0; j < msg->stuff.shelf.nfloors; j++)
         msg->stuff.shelf.ndepth[j] = sqlrow[i][2*j]-'0';//提取出ndepth[]
+    i++;//完成ndepth[]
     i++;//跳过cleaned
     strcpy(msg->stuff.shelf.building_time, sqlrow[i++]);
     if (i != field_cnt)
     {
-        return(0);
 #if DEBUG_TRACE
         fprintf(stderr, "fetch() error: field_cnt didn't match while copying data\n");
 #endif
+        return(0);
     }
     return(1);
 }

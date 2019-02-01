@@ -9,20 +9,12 @@ void show_result(void);
 int main()
 {
     int res, rows;
+//    unsigned char depth[MAX_FLOORS] = {2,3,2,1}; 
     message_cs_t msg;
 
     strcpy(msg.user, "daqui");
+    msg.stuff.shelf.code = NON_SENSE_INT;
 
-    msg.stuff.book.borrowed = 0;
-    msg.stuff.book.on_reading = 0;
-    msg.stuff.book.code[0] = 2;
-    msg.stuff.book.code[1] = NON_SENSE_INT;
-    msg.stuff.book.code[2] = 15;
-
-    strcpy(msg.stuff.book.name, "0");
-    strcpy(msg.stuff.book.author, "0");
-    strcpy(msg.stuff.book.label, "0");
-    //strcpy(msg.stuff.book.encoding_time, "20190131");
     res = srvdb_init();
     if(!res)return(EXIT_FAILURE);
     printf("init successed\n");
@@ -32,19 +24,26 @@ int main()
     res = srvdb_user_archive_init("daqui");
     if(!res)return(EXIT_FAILURE);
     printf("archive init successed\n");
-    res = srvdb_book_find(&msg, &rows);
+    res = srvdb_shelf_find(&msg, &rows);
     if(!res)return(EXIT_FAILURE);
-    printf("find %d rows\n", rows);
+    printf("find successed,%d rows\n", rows);
     show_result();
+    return(EXIT_SUCCESS);
 }
 
 void show_result(void)
 {
     message_cs_t msg;
+    int i;
 
-    while(srvdb_book_fetch_result(&msg)){
-        printf("%d %s %s %s %s\n", msg.stuff.book.code[2],\
-                msg.stuff.book.name, msg.stuff.book.author, msg.stuff.book.label, msg.stuff.book.encoding_time);
+    while(srvdb_shelf_fetch_result(&msg)){
+        printf("%d %s %d %s ", msg.stuff.shelf.code, msg.stuff.shelf.name, \
+                msg.stuff.shelf.nfloors, msg.stuff.shelf.building_time);
+        for (i = 0; i < msg.stuff.shelf.nfloors; i++)
+        {
+            printf("%d ",msg.stuff.shelf.ndepth[i]);
+        }
+        printf("\n");
     }
 
     srvdb_free_result();
@@ -95,3 +94,29 @@ void show_result(void)
     /*strcpy(msg.stuff.book.author, "0");*/
     /*strcpy(msg.stuff.book.label, "+经");*/
     /*strcpy(msg.stuff.book.encoding_time, "20190131");*/
+    /*res = srvdb_shelf_insert(&msg);*/
+
+
+//shelf delete
+/*    msg.stuff.shelf.code= 6;*/
+    /*res = srvdb_shelf_delete(&msg);*/
+    /*if(!res)return(EXIT_FAILURE);*/
+    /*printf("delete successed\n");*/
+    /*msg.stuff.shelf.code= 15;*/
+    /*res = srvdb_shelf_delete(&msg);*/
+    /*if(!res)return(EXIT_FAILURE);*/
+    /*printf("delete successed\n");*/
+    /*msg.stuff.shelf.code= 18;*/
+    /*res = srvdb_shelf_delete(&msg);*/
+    /*if(!res)return(EXIT_FAILURE);*/
+    /*printf("delete successed\n");*/
+
+// shelf update
+    /*res = srvdb_shelf_update(&msg);*/
+    /*if(!res)return(EXIT_FAILURE);*/
+    /*printf("update successed\n");*/
+    /*msg.stuff.shelf.code = 6;*/
+    /*strcpy(msg.stuff.shelf.name, "办公室6");*/
+    /*res = srvdb_shelf_update(&msg);*/
+    /*if(!res)return(EXIT_FAILURE);*/
+    /*printf("update successed\n");*/
