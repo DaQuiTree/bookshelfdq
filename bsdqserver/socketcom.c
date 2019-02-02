@@ -8,6 +8,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include "socketcom.h"
 #include "clisrv.h"
 #include "srvdb.h"
 
@@ -36,7 +37,7 @@ int socket_srv_init(void)
     }
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    server_addr.sin_port = htons(bsdq_port);
+    server_addr.sin_port = htons(bsdqsrv_port);
 
     result = bind(server_sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr));
     if( result == -1 ){
@@ -56,6 +57,8 @@ int socket_srv_init(void)
 
     FD_ZERO(&readfds);
     FD_ZERO(&recordfds);
+    FD_SET(server_sockfd, &recordfds);
+    max_fd_num = server_sockfd;
     return(1);
 }
 
@@ -94,13 +97,14 @@ int socket_srv_fetch_client(void)
 {
     static int fd_loop = 0;
     struct sockaddr_in client_addr;
-    int newfd, nread, addr_len;
+    unsigned int addr_len;
+    int newfd, nread;
 
     if(server_sockfd == -1){
 #if DEBUG_TRACE
         fprintf(stderr, "server fd has not been initialize yet.\n");
 #endif
-        return 0;
+        return SOCKET_FETCH_ERR;
     }
 
     //描述符集中有成员?
@@ -115,7 +119,7 @@ int socket_srv_fetch_client(void)
                     return(SOCKET_FETCH_ERR);
                 }
                 FD_SET(newfd, &recordfds);
-                newfd > max_fd_num ? max_fd_num = newfd:;
+                newfd > max_fd_num ? max_fd_num = newfd : 0;
             }else{//数据ready
                 ioctl(fd_loop, FIONREAD, &nread);
                 if(nread == 0){
@@ -252,6 +256,7 @@ int socket_srv_process_request(int client_fd)
 #if DEBUG_TRACE
     fprintf(stderr, "write: server write %d bytes to client\n", nwrite);
 #endif
+    return(1);
 }
 
 
@@ -282,6 +287,8 @@ int socket_client_init(char *host)
 #endif 
         return(0);
     }
+
+    return(1);
 }
 
 void socket_client_close(void)
