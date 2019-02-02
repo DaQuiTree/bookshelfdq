@@ -13,8 +13,8 @@ int srvdb_book_update(message_cs_t *msg);
 int srvdb_book_find(message_cs_t *msg, int *num_rows);
 int srvdb_book_fetch_result(message_cs_t *msg);
 
-int srvdb_shelf_insert(message_cs_t *msg);
-int srvdb_shelf_delete(message_cs_t *msg);
+int srvdb_shelf_build(message_cs_t *msg);
+int srvdb_shelf_remove(message_cs_t *msg);
 int srvdb_shelf_update(message_cs_t *msg);
 int srvdb_shelf_find(message_cs_t *msg, int *num_rows);
 int srvdb_shelf_fetch_result(message_cs_t *msg);

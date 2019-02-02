@@ -455,7 +455,7 @@ void srvdb_free_result(void)
 // 以下是关于书架的MYSQL封装
 //
 
-int srvdb_shelf_insert(message_cs_t *msg)
+int srvdb_shelf_build(message_cs_t *msg)
 {
     char table_name[128];
     char es_name[SHELF_NAME_LEN+1];
@@ -548,7 +548,7 @@ int srvdb_shelf_insert(message_cs_t *msg)
     return(0);
 }
 
-int srvdb_shelf_delete(message_cs_t *msg)
+int srvdb_shelf_remove(message_cs_t *msg)
 {
     char table_name[128];
     char is[1024];
@@ -564,9 +564,16 @@ int srvdb_shelf_delete(message_cs_t *msg)
     sprintf(table_name, "%s_shelves", msg->user);
     shelfno_del = msg->stuff.shelf.code;
    
+    //删除书架
     sprintf(is, "UPDATE %s SET cleaned=%d WHERE shelfno=%d", table_name, SHELF_DEL, shelfno_del);
     res = mysql_query(&my_connection, is);
-    if(!res)return(1);
+    if(!res)
+    {
+        //重置图书
+        sprintf(table_name, "%s_books", msg->user);
+        sprintf(is, "UPDATE %s SET cleaned=%d WHERE shelfno=%d", table_name, BOOK_UNDEF, shelfno_del);
+        if(!res)return(1);
+    }
 #if DEBUG_TRACE
         fprintf(stderr, "Delete shelfno %d error %d: %s\n", shelfno_del, mysql_errno(&my_connection), mysql_error(&my_connection));
 #endif

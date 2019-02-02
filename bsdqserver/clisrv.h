@@ -45,7 +45,11 @@ typedef union{
 typedef enum{
     req_insert_book_e,
     req_delete_book_e,
-    req_update_book_e
+    req_update_book_e,
+    req_find_book_e,
+    req_build_shelf_e,
+    req_remove_shelf_e,
+    req_find_shelf_e
 }client_request_e;
 
 typedef enum{
