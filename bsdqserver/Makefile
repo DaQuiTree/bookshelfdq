@@ -18,8 +18,10 @@ bsdq_server: bsdq_server.o socketcom.o srvdb.o
 bsdq_client: bsdq_client.o socketcom.o srvdb.o
 	$(CC) $(CFLAGS) $(DFLAGS) -o bsdq_client -I$(MYSQL_INC_PATH) srvdb.o socketcom.o bsdq_client.o $(MYSQL_LIB_FILE) -L$(MYSQL_LIB_PATH)
 
+.c.o:
+	$(CC) $(CFLAGS) $(DFLAGS) -I$(MYSQL_INC_PATH) -c $<
+
 srvdb.o: srvdb.c clisrv.h srvdb.h 
-	$(CC) $(CFLAGS) $(DFLAGS) -I$(MYSQL_INC_PATH) -c srvdb.c
 socketcom.o: socketcom.c socketcom.h clisrv.h srvdb.h
 srvdbmain.o: srvdbmain.c clisrv.h srvdb.h
 bsdq_server.o: bsdq_server.c socketcom.h clisrv.h srvdb.h

@@ -77,7 +77,7 @@ int socket_srv_wait(void)
 
     if(server_sockfd == -1){
 #if DEBUG_TRACE
-        fprintf(stderr, "server fd has not been initialize yet.\n");
+        fprintf(stderr, "socket_srv_wait(): server fd has not been initialize yet.\n");
 #endif
         return 0;
     }
@@ -102,7 +102,7 @@ int socket_srv_fetch_client(void)
 
     if(server_sockfd == -1){
 #if DEBUG_TRACE
-        fprintf(stderr, "server fd has not been initialize yet.\n");
+        fprintf(stderr, "socket_srv_fetch_client(): server fd has not been initialize yet.\n");
 #endif
         return SOCKET_FETCH_ERR;
     }
@@ -137,20 +137,20 @@ int socket_srv_fetch_client(void)
     fd_loop = 0;
 
 #if DEBUG_TRACE
-    fprintf(stdout, "loop of server fetch client fd is over.\n");
+    fprintf(stdout, "socket_srv_fetch_client(): loop of server fetch client fd is over.\n");
 #endif
     return (SOCKET_FETCH_END);
 }
 
 int socket_srv_process_request(int client_fd)
 {
-    int nread, nwrite, nrows;
+    int nread, nwrite, nrows, res;
     message_cs_t msg;
     int msg_size = sizeof(msg);
 
     if(server_sockfd == -1){
 #if DEBUG_TRACE
-        fprintf(stderr, "server fd has not been initialize yet.\n");
+        fprintf(stderr, "socket_srv_process_request(): server fd has not been initialize yet.\n");
 #endif
         return 0;
     }
@@ -160,24 +160,24 @@ int socket_srv_process_request(int client_fd)
     if (nread != msg_size){
         if (nread < 0){
 #if DEBUG_TRACE
-            perror("read()");
+            perror("socket_srv_process_request(): read()");
 #endif
             return 0;
         }else{
 #if DEBUG_TRACE
-            fprintf(stderr, "read(msg) error: Server recieved incorrect num of message.\n");
+            fprintf(stderr, "socket_srv_process_request() read error: Server recieved incorrect num of message.\n");
 #endif
             msg.response = r_failed;
             strcpy(msg.error_text, "Server recieved incorrect num of message.");
             nwrite = write(client_fd, &msg, msg_size);
             if (nwrite < 0){
 #if DEBUG_TRACE
-                perror("write()");
+                perror("socket_srv_process_request(): write()");
 #endif
                 return(0);
             }
 #if DEBUG_TRACE
-            fprintf(stderr, "read(msg) error: server write %d bytes to client\n", nwrite);
+            fprintf(stderr, "socket_srv_process_request() read error: server write %d bytes to client\n", nwrite);
 #endif
             return(1);
         }
@@ -200,22 +200,31 @@ int socket_srv_process_request(int client_fd)
         case req_find_book_e:
             if(!srvdb_book_find(&msg, &nrows)){
                 msg.response = r_failed;
-                srvdb_free_result();
                 break;
             }
-            while(srvdb_book_fetch_result(&msg)){
+            while((res = srvdb_book_fetch_result(&msg)) != FETCH_RESULT_ERR){
+                if(res == FETCH_RESULT_END){
+                    msg.response = r_find_end; //查询结束
+                }else if(res == FETCH_RESULT_END_MORE){
+                    msg.response = r_find_end_more; //本次结束需再次查询
+                }else{
+                    msg.response = r_success;
+                }
                 nwrite = write(client_fd, &msg, msg_size);
                 if (nwrite < 0){
 #if DEBUG_TRACE
-                    perror("write()");
+                    perror("socket_srv_process_request: write()");
 #endif
                     return(0);
                 }
 #if DEBUG_TRACE
-                fprintf(stderr, "write: server write %d bytes to client\n", nwrite);
+                fprintf(stderr, "socket_srv_process_request(): server write %d bytes to client\n", nwrite);
 #endif
+                if(res == FETCH_RESULT_END ||  res == FETCH_RESULT_END_MORE)return(1);
             }
-            return(1);
+            msg.response = r_failed;
+            strcpy(msg.error_text, "Find book request failed, try again later.");
+            return(0);
         case req_build_shelf_e:
             if(!srvdb_shelf_build(&msg))msg.response = r_failed;
             break;
@@ -227,19 +236,30 @@ int socket_srv_process_request(int client_fd)
                 msg.response = r_failed;
                 break;
             }
-            while(srvdb_shelf_fetch_result(&msg)){
+            while((res = srvdb_shelf_fetch_result(&msg)) != FETCH_RESULT_ERR){
+                if(res == FETCH_RESULT_END){
+                    msg.response = r_find_end; //查询结束
+                }else if(res == FETCH_RESULT_END_MORE){
+                    msg.response = r_find_end_more; //本次结束需再次查询
+                }else{
+                    msg.response = r_success;
+                }
                 nwrite = write(client_fd, &msg, msg_size);
                 if (nwrite < 0){
 #if DEBUG_TRACE
-                    perror("write()");
+                    perror("socket_srv_process_request(): write() ");
 #endif
                     return(0);
                 }
 #if DEBUG_TRACE
-                fprintf(stderr, "write: server write %d bytes to client\n", nwrite);
+                fprintf(stderr, "socket_srv_process_request(): server write %d bytes to client\n", nwrite);
 #endif
+                if(res == FETCH_RESULT_END ||  res == FETCH_RESULT_END_MORE)return(1);
             }
-            return(1);
+
+            msg.response = r_failed;
+            strcpy(msg.error_text, "Find shelf request failed, try again later.");
+            return(0);
         default:
             msg.response = r_failed;
             strcpy(msg.error_text, "Undefined request type.");
@@ -249,12 +269,12 @@ int socket_srv_process_request(int client_fd)
     nwrite = write(client_fd, &msg, msg_size);
     if (nwrite < 0){
 #if DEBUG_TRACE
-        perror("write()");
+        perror("socket_srv_process_request(): write()");
 #endif
         return(0);
     }
 #if DEBUG_TRACE
-    fprintf(stderr, "write: server write %d bytes to client\n", nwrite);
+    fprintf(stderr, "socket_srv_process_request(): server write %d bytes to client\n", nwrite);
 #endif
     return(1);
 }
@@ -304,7 +324,7 @@ int socket_client_send_request(message_cs_t *msg)
     
     if(client_sockfd == -1){
 #if DEBUG_TRACE
-        fprintf(stderr, "client fd has not been initialize yet.\n");
+        fprintf(stderr, " socket_client_send_request(): client fd has not been initialize yet.\n");
 #endif
         return 0;
     }
@@ -312,12 +332,12 @@ int socket_client_send_request(message_cs_t *msg)
     if (nwrite == -1)
     {
 #if DEBUG_TRACE
-        perror("client write()");
+        perror(" socket_client_send_request(): client write()");
 #endif
         return 0;
     }
 #if DEBUG_TRACE
-    fprintf(stderr, "Client write %d bytes.\n", nwrite);
+    fprintf(stderr, " socket_client_send_request(): client write %d bytes.\n", nwrite);
 #endif
     return 1;
 }
@@ -328,7 +348,7 @@ int socket_client_get_response(message_cs_t *msg)
 
     if(client_sockfd == -1){
 #if DEBUG_TRACE
-        fprintf(stderr, "client fd has not been initialize yet.\n");
+        fprintf(stderr, "socket_client_get_response(): client fd has not been initialize yet.\n");
 #endif
         return 0;
     }
@@ -336,12 +356,12 @@ int socket_client_get_response(message_cs_t *msg)
     if (nread == -1)
     {
 #if DEBUG_TRACE
-        perror("client read()");
+        perror("socket_client_get_response(): read()");
 #endif
         return 0;
     }
 #if DEBUG_TRACE
-    fprintf(stderr, "Client read %d bytes.\n", nread);
+    fprintf(stderr, "socket_client_get_response(): read %d bytes.\n", nread);
 #endif
     return 1;
 }

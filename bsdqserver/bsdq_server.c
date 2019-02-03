@@ -41,8 +41,8 @@ int main()
         }
 
         printf("server wait over.\n");
-        do{
-            client_fd = socket_srv_fetch_client();
+        while((client_fd = socket_srv_fetch_client()) != SOCKET_FETCH_END)
+        {
             if (client_fd == SOCKET_FETCH_ERR){
                 fprintf(stderr, "server running error when fetch client fd.\n");
                 exit(EXIT_FAILURE);
@@ -50,7 +50,7 @@ int main()
             printf("server fetch one.\n");
             socket_srv_process_request(client_fd);
             printf("server process a request.\n");
-        }while(client_fd != SOCKET_FETCH_END);
+        };
     }
 
     socket_srv_close(); //不应该来到这里

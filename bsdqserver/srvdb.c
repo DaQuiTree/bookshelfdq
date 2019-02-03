@@ -4,13 +4,15 @@
 #include <string.h>
 
 #include <mysql.h>
+#include "srvdb.h"
 #include "clisrv.h"
 
 
 static MYSQL my_connection;
 //和检索相关静态变量
 static MYSQL_RES *res_ptr = NULL;
-static int field_cnt = 0;
+static int res_fields = 0;
+static int res_rows = 0;
 
 static const char *my_user = "bsdq";
 static const char *my_passwd = "bsdq";
@@ -297,22 +299,30 @@ int srvdb_book_find(message_cs_t *msg, int *num_rows)
 
     char symbol = '=';
     if(shelfno_save == NON_SENSE_INT) symbol = '>';//全局搜索?
-    if (msg->stuff.book.borrowed == FLAG_FIND_UNDEF && msg->stuff.book.on_reading == FLAG_FIND_UNDEF)
+
+    int limit = DEFAULT_FINDS; 
+    char *columns = "*";
+    if(bookno_start == BREAK_LIMIT_INT){ //放开搜索结果数量限制?
+        bookno_start = NON_SENSE_INT;
+        limit = MAX_BOOK_NUM;
+        columns = "bookno";
+    }
+    if (msg->stuff.book.borrowed == FLAG_FIND_UNSORTED && msg->stuff.book.on_reading == FLAG_FIND_UNSORTED)
     {   //查询未归档的图书
-        sprintf(is, "SELECT * FROM %s WHERE cleaned=%d and shelfno%c%d and bookno>%d ORDER BY bookno LIMIT %d",\
-                table_name, BOOK_UNDEF, symbol, shelfno_save, bookno_start, DEFAULT_FINDS); 
+        sprintf(is, "SELECT %s FROM %s WHERE cleaned=%d and shelfno%c%d and bookno>%d ORDER BY bookno LIMIT %d",\
+                columns, table_name, BOOK_UNSORTED, symbol, shelfno_save, bookno_start, limit); 
     }else{
         if (msg->stuff.book.borrowed == FLAG_BORROWED){//查询外借图书
-            sprintf(is, "SELECT * FROM %s WHERE borrowed=1 and cleaned=%d and shelfno%c%d and bookno>%d ORDER BY bookno LIMIT %d",\
-                    table_name, BOOK_AVL, symbol, shelfno_save, bookno_start, DEFAULT_FINDS); 
+            sprintf(is, "SELECT %s FROM %s WHERE borrowed=1 and cleaned=%d and shelfno%c%d and bookno>%d ORDER BY bookno LIMIT %d",\
+                    columns, table_name, BOOK_AVL, symbol, shelfno_save, bookno_start, limit); 
         }else if(msg->stuff.book.on_reading == FLAG_ON_READING){ //查询在读图书
-            sprintf(is, "SELECT * FROM %s WHERE on_reading=1 and cleaned=%d and shelfno%c%d and bookno>%d ORDER BY bookno LIMIT %d",\
-                    table_name, BOOK_AVL, symbol, shelfno_save, bookno_start, DEFAULT_FINDS); 
+            sprintf(is, "SELECT %s FROM %s WHERE on_reading=1 and cleaned=%d and shelfno%c%d and bookno>%d ORDER BY bookno LIMIT %d",\
+                    columns, table_name, BOOK_AVL, symbol, shelfno_save, bookno_start, limit); 
         }else{
             //关键字检索图书
             if (bookno_start != NON_SENSE_INT && bookno_start < 0){
                 //指定书号查询
-                sprintf(is, "SELECT * FROM %s WHERE bookno=%d", table_name, -bookno_start);
+                sprintf(is, "SELECT %s FROM %s WHERE bookno=%d", columns, table_name, -bookno_start);
             }else{
                 //书名[0]：'0'忽略,'-'模糊查找,'+'半精确查找,'='精确查找
                 mysql_escape_string(es_temp, msg->stuff.book.name+1, strlen(msg->stuff.book.name)-1);//保护字符串中的特殊字符
@@ -382,8 +392,8 @@ int srvdb_book_find(message_cs_t *msg, int *num_rows)
                 if (floorno_save != NON_SENSE_INT && shelfno_save != NON_SENSE_INT)sprintf(floor_sql, " and floorno=%d ", floorno_save);//按层检索时要保证指定了书架
 
                 //生产SQL语句
-                sprintf(is, "SELECT * FROM %s WHERE shelfno%c%d AND cleaned=%d AND bookno>%d %s%s%s%s ORDER BY bookno LIMIT %d",\
-                        table_name, symbol, shelfno_save, BOOK_AVL, bookno_start, floor_sql, es_name_sql, es_author_sql, es_label_sql, DEFAULT_FINDS);
+                sprintf(is, "SELECT %s FROM %s WHERE shelfno%c%d AND cleaned=%d AND bookno>%d %s%s%s%s ORDER BY bookno LIMIT %d",\
+                        columns, table_name, symbol, shelfno_save, BOOK_AVL, bookno_start, floor_sql, es_name_sql, es_author_sql, es_label_sql, limit);
             }
         }
     }
@@ -400,9 +410,10 @@ int srvdb_book_find(message_cs_t *msg, int *num_rows)
         res_ptr = mysql_store_result(&my_connection);
         if(res_ptr){
             *num_rows = mysql_num_rows(res_ptr);
-            field_cnt = mysql_field_count(&my_connection);
+            res_rows = *num_rows;
+            res_fields = mysql_field_count(&my_connection);
 #if DEBUG_TRACE
-            fprintf(stderr, "book_find(): %d rows with %d columns\n", *num_rows, field_cnt);
+            fprintf(stderr, "book_find(): %d rows with %d columns\n", *num_rows, res_fields);
 #endif
             return(1); 
         }
@@ -420,9 +431,14 @@ int srvdb_book_fetch_result(message_cs_t *msg)
 #if DEBUG_TRACE
         fprintf(stderr, "Retrive error: %s\n", mysql_error(&my_connection));
 #endif
-        return(0);
+        srvdb_free_result();
+        return(FETCH_RESULT_ERR);
     }
-    if (sqlrow == NULL)return(0);
+    if (sqlrow == NULL){
+        srvdb_free_result();
+        if (res_rows == DEFAULT_FINDS)return(FETCH_RESULT_END_MORE); //需要继续查询
+        return(FETCH_RESULT_END);//查询结束
+    } 
     sscanf(sqlrow[i++], "%d", &msg->stuff.book.code[0]);
     sscanf(sqlrow[i++], "%d", &msg->stuff.book.code[1]);
     sscanf(sqlrow[i++], "%d", &msg->stuff.book.code[2]);
@@ -433,23 +449,79 @@ int srvdb_book_fetch_result(message_cs_t *msg)
     sscanf(sqlrow[i++], "%c", &msg->stuff.book.on_reading);
     i++;//跳过cleaned
     strcpy(msg->stuff.book.encoding_time, sqlrow[i++]);
-    if (i != field_cnt)
+    if (i != res_fields)
     {
-        return(0);
+        srvdb_free_result();
+        return(FETCH_RESULT_ERR);
 #if DEBUG_TRACE
-        fprintf(stderr, "fetch() error: field_cnt didn't match while copying data\n");
+        fprintf(stderr, "fetch() error: res_fields didn't match while copying data\n");
 #endif
     }
-    return(1);
+    
+    return(FETCH_RESULT_CONT);
 }
 
 void srvdb_free_result(void)
 {
     mysql_free_result(res_ptr);
     res_ptr = NULL;
-    field_cnt = 0;
+    res_fields = 0;
+    res_rows = 0;
 }
 
+int srvdb_book_count(message_cs_t *msg)
+{
+    book_count_t bc;
+
+    msg->stuff.book.code[2] = BREAK_LIMIT_INT;
+    //在读图书数量
+    msg->stuff.book.on_reading = FLAG_ON_READING;
+    if(!srvdb_book_find(msg, &bc.books_on_reading)){
+#if DEBUG_TRACE
+        fprintf(stderr, "srvdb_book_count() error: on_reading\n");
+#endif
+        return(0);
+    }
+    srvdb_free_result();
+
+    //外借图书数量
+    msg->stuff.book.borrowed = FLAG_BORROWED;
+    if(!srvdb_book_find(msg, &bc.books_borrowed)){
+#if DEBUG_TRACE
+        fprintf(stderr, "srvdb_book_count() error: on_reading\n");
+#endif
+        return(0);
+    }
+    srvdb_free_result();
+
+    //未处理图书数量
+    msg->stuff.book.borrowed = FLAG_FIND_UNSORTED;
+    msg->stuff.book.on_reading = FLAG_FIND_UNSORTED;
+    if(!srvdb_book_find(msg, &bc.books_unsorted)){
+#if DEBUG_TRACE
+        fprintf(stderr, "srvdb_book_count() error: on_reading\n");
+#endif
+        return(0);
+    }
+    srvdb_free_result();
+
+    //图书总数
+    msg->stuff.book.borrowed = 0;
+    msg->stuff.book.on_reading = 0;
+    msg->stuff.book.name[0] = '\0';
+    msg->stuff.book.author[0] = '\0';
+    msg->stuff.book.label[0] = '\0';
+    if(!srvdb_book_find(msg, &bc.books_all)){
+#if DEBUG_TRACE
+        fprintf(stderr, "srvdb_book_count() error: on_reading\n");
+#endif
+        return(0);
+    }
+    srvdb_free_result();
+
+    *(book_count_t *)&msg->extra_info = bc;
+    return(1);
+}
 
 //
 // 以下是关于书架的MYSQL封装
@@ -571,7 +643,7 @@ int srvdb_shelf_remove(message_cs_t *msg)
     {
         //重置图书
         sprintf(table_name, "%s_books", msg->user);
-        sprintf(is, "UPDATE %s SET cleaned=%d WHERE shelfno=%d", table_name, BOOK_UNDEF, shelfno_del);
+        sprintf(is, "UPDATE %s SET cleaned=%d WHERE shelfno=%d", table_name, BOOK_UNSORTED, shelfno_del);
         if(!res)return(1);
     }
 #if DEBUG_TRACE
@@ -636,10 +708,18 @@ int srvdb_shelf_find(message_cs_t *msg, int *num_rows)
     sprintf(table_name, "%s_shelves", msg->user);
     shelfno_find = msg->stuff.shelf.code; 
 
-    if (shelfno_find == NON_SENSE_INT){
-        sprintf(is, "SELECT * FROM %s WHERE cleaned=%d", table_name, SHELF_AVL); //查找所有书架信息
+    int limit = DEFAULT_FINDS;
+    char *columns = "*";
+    if (shelfno_find == BREAK_LIMIT_INT){
+        shelfno_find = 0;
+        limit = MAX_SHELF_NUM;
+        columns = "shelfno";
+    }
+
+    if(shelfno_find < 0){
+        sprintf(is, "SELECT %s FROM %s WHERE shelfno=%d AND cleaned=%d ORDER BY shelfno LIMIT %d", columns, table_name, -shelfno_find, SHELF_AVL, limit); //查找指定书架信息
     }else{
-        sprintf(is, "SELECT * FROM %s WHERE shelfno=%d AND cleaned=%d", table_name, shelfno_find, SHELF_AVL); //查找指定书架信息
+        sprintf(is, "SELECT %s FROM %s WHERE shelfno>%d cleaned=%d ORDER BY shelfno LIMIT %d", columns, table_name, shelfno_find, SHELF_AVL, limit); //查找所有书架信息
     }
     
     int res;
@@ -653,9 +733,10 @@ int srvdb_shelf_find(message_cs_t *msg, int *num_rows)
         res_ptr = mysql_store_result(&my_connection);
         if(res_ptr){
             *num_rows = mysql_num_rows(res_ptr);
-            field_cnt = mysql_field_count(&my_connection);
+            res_rows = *num_rows;
+            res_fields = mysql_field_count(&my_connection);
 #if DEBUG_TRACE
-            fprintf(stderr, "shelf_find(): %d rows with %d columns\n", *num_rows, field_cnt);
+            fprintf(stderr, "shelf_find(): %d rows with %d columns\n", *num_rows, res_fields);
 #endif
             return(1); 
         }
@@ -673,9 +754,14 @@ int srvdb_shelf_fetch_result(message_cs_t *msg)
 #if DEBUG_TRACE
         fprintf(stderr, "shelf Retrive error: %s\n", mysql_error(&my_connection));
 #endif
-        return(0);
+        srvdb_free_result();
+        return(FETCH_RESULT_ERR);
     }
-    if (sqlrow == NULL)return(0);
+    if (sqlrow == NULL){
+        srvdb_free_result();
+        if (res_rows == DEFAULT_FINDS)return(FETCH_RESULT_END_MORE); //需要继续查询
+        return(FETCH_RESULT_END);//查询结束
+    } 
     sscanf(sqlrow[i++], "%d", &msg->stuff.shelf.code);
     strcpy(msg->stuff.shelf.name, sqlrow[i++]);
     msg->stuff.shelf.nfloors = sqlrow[i++][0] - '0';
@@ -684,12 +770,31 @@ int srvdb_shelf_fetch_result(message_cs_t *msg)
     i++;//完成ndepth[]
     i++;//跳过cleaned
     strcpy(msg->stuff.shelf.building_time, sqlrow[i++]);
-    if (i != field_cnt)
+    if (i != res_fields)
     {
 #if DEBUG_TRACE
-        fprintf(stderr, "fetch() error: field_cnt didn't match while copying data\n");
+        fprintf(stderr, "fetch() error: res_fields didn't match while copying data\n");
+#endif
+        srvdb_free_result();
+        return(FETCH_RESULT_ERR);
+    }
+    return(FETCH_RESULT_CONT);
+}
+
+int srvdb_shelf_count(message_cs_t *msg)
+{
+    shelf_count_t sc;
+
+    msg->stuff.shelf.code = BREAK_LIMIT_INT;
+    //书架总数
+    if(!srvdb_shelf_find(msg, &sc.shelf_all)){
+#if DEBUG_TRACE
+        fprintf(stderr, "srvdb_book_count() error: on_reading\n");
 #endif
         return(0);
     }
+    srvdb_free_result();
+
+    *(shelf_count_t *)&msg->extra_info = sc;
     return(1);
 }
