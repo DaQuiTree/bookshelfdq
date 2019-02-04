@@ -18,7 +18,7 @@ int main(int argc, char *argv[]) {
    MYSQL_RES *res_ptr;
 
    mysql_init(&my_connection);  
-   if (mysql_real_connect(&my_connection, "localhost", "bsdq", "bsdq", "foo", 0, NULL, CLIENT_FOUND_ROWS)) {
+   if (mysql_real_connect(&my_connection, "localhost", "bsdq", "bsdq", "bsdq_db", 0, NULL, 0)) {
       if ( mysql_set_character_set( &my_connection, "utf8" ) ) {
             fprintf ( stderr , "错误, %s/n" , mysql_error( &my_connection) ) ;
         }
@@ -26,7 +26,6 @@ int main(int argc, char *argv[]) {
 
       res_ptr = find_result();
       count = mysql_field_count(&my_connection);
-      res = mysql_query(&my_connection, "SELECT * FROM daqui_books WHERE bookno > 108");
       if (!res_ptr) {
       }else{
           while(use_result(res_ptr))
@@ -51,7 +50,7 @@ MYSQL_RES *find_result(void)
     int res;
     MYSQL_RES *res_p;
 
-    res = mysql_query(&my_connection, "SELECT * FROM daqui_books WHERE bookno > 108");
+    res = mysql_query(&my_connection, "SELECT bookno FROM daqui_books WHERE shelfno>0 AND cleaned=0 AND bookno>0  AND (name LIKE '%%'  AND author LIKE '%%'  AND label LIKE '%%')  ORDER BY bookno LIMIT 36");
     if(res){
         return NULL;
     }else{

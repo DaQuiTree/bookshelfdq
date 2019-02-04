@@ -40,7 +40,7 @@ typedef struct{
 }shelf_entry_t;
 
 typedef struct{
-    int shelf_all;
+    int shelves_all;
 }shelf_count_t;
 
 //socket通讯相关

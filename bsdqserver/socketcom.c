@@ -225,6 +225,9 @@ int socket_srv_process_request(int client_fd)
             msg.response = r_failed;
             strcpy(msg.error_text, "Find book request failed, try again later.");
             return(0);
+        case req_count_book_e:
+            if(!srvdb_book_count(&msg))msg.response = r_failed;
+            break;
         case req_build_shelf_e:
             if(!srvdb_shelf_build(&msg))msg.response = r_failed;
             break;
@@ -260,6 +263,9 @@ int socket_srv_process_request(int client_fd)
             msg.response = r_failed;
             strcpy(msg.error_text, "Find shelf request failed, try again later.");
             return(0);
+        case req_count_shelf_e:
+            if(!srvdb_shelf_count(&msg))msg.response = r_failed;
+            break;
         default:
             msg.response = r_failed;
             strcpy(msg.error_text, "Undefined request type.");

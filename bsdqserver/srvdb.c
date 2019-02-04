@@ -435,8 +435,8 @@ int srvdb_book_fetch_result(message_cs_t *msg)
         return(FETCH_RESULT_ERR);
     }
     if (sqlrow == NULL){
-        srvdb_free_result();
         if (res_rows == DEFAULT_FINDS)return(FETCH_RESULT_END_MORE); //需要继续查询
+        srvdb_free_result();
         return(FETCH_RESULT_END);//查询结束
     } 
     sscanf(sqlrow[i++], "%d", &msg->stuff.book.code[0]);
@@ -451,11 +451,11 @@ int srvdb_book_fetch_result(message_cs_t *msg)
     strcpy(msg->stuff.book.encoding_time, sqlrow[i++]);
     if (i != res_fields)
     {
-        srvdb_free_result();
-        return(FETCH_RESULT_ERR);
 #if DEBUG_TRACE
         fprintf(stderr, "fetch() error: res_fields didn't match while copying data\n");
 #endif
+        srvdb_free_result();
+        return(FETCH_RESULT_ERR);
     }
     
     return(FETCH_RESULT_CONT);
@@ -488,7 +488,7 @@ int srvdb_book_count(message_cs_t *msg)
     msg->stuff.book.borrowed = FLAG_BORROWED;
     if(!srvdb_book_find(msg, &bc.books_borrowed)){
 #if DEBUG_TRACE
-        fprintf(stderr, "srvdb_book_count() error: on_reading\n");
+        fprintf(stderr, "srvdb_book_count() error: borrowed\n");
 #endif
         return(0);
     }
@@ -499,26 +499,29 @@ int srvdb_book_count(message_cs_t *msg)
     msg->stuff.book.on_reading = FLAG_FIND_UNSORTED;
     if(!srvdb_book_find(msg, &bc.books_unsorted)){
 #if DEBUG_TRACE
-        fprintf(stderr, "srvdb_book_count() error: on_reading\n");
+        fprintf(stderr, "srvdb_book_count() error: unsorted\n");
 #endif
         return(0);
     }
     srvdb_free_result();
 
     //图书总数
+    msg->stuff.book.code[0] = NON_SENSE_INT;
+    msg->stuff.book.code[1] = NON_SENSE_INT;
     msg->stuff.book.borrowed = 0;
     msg->stuff.book.on_reading = 0;
-    msg->stuff.book.name[0] = '\0';
-    msg->stuff.book.author[0] = '\0';
-    msg->stuff.book.label[0] = '\0';
+    strcpy(msg->stuff.book.name, "0");
+    strcpy(msg->stuff.book.author, "0");
+    strcpy(msg->stuff.book.label, "0");
     if(!srvdb_book_find(msg, &bc.books_all)){
 #if DEBUG_TRACE
-        fprintf(stderr, "srvdb_book_count() error: on_reading\n");
+        fprintf(stderr, "srvdb_book_count() error: all\n");
 #endif
         return(0);
     }
     srvdb_free_result();
 
+    bc.books_all += bc.books_unsorted;
     *(book_count_t *)&msg->extra_info = bc;
     return(1);
 }
@@ -719,7 +722,7 @@ int srvdb_shelf_find(message_cs_t *msg, int *num_rows)
     if(shelfno_find < 0){
         sprintf(is, "SELECT %s FROM %s WHERE shelfno=%d AND cleaned=%d ORDER BY shelfno LIMIT %d", columns, table_name, -shelfno_find, SHELF_AVL, limit); //查找指定书架信息
     }else{
-        sprintf(is, "SELECT %s FROM %s WHERE shelfno>%d cleaned=%d ORDER BY shelfno LIMIT %d", columns, table_name, shelfno_find, SHELF_AVL, limit); //查找所有书架信息
+        sprintf(is, "SELECT %s FROM %s WHERE shelfno>%d AND cleaned=%d ORDER BY shelfno LIMIT %d", columns, table_name, shelfno_find, SHELF_AVL, limit); //查找所有书架信息
     }
     
     int res;
@@ -758,8 +761,8 @@ int srvdb_shelf_fetch_result(message_cs_t *msg)
         return(FETCH_RESULT_ERR);
     }
     if (sqlrow == NULL){
-        srvdb_free_result();
         if (res_rows == DEFAULT_FINDS)return(FETCH_RESULT_END_MORE); //需要继续查询
+        srvdb_free_result();
         return(FETCH_RESULT_END);//查询结束
     } 
     sscanf(sqlrow[i++], "%d", &msg->stuff.shelf.code);
@@ -787,9 +790,9 @@ int srvdb_shelf_count(message_cs_t *msg)
 
     msg->stuff.shelf.code = BREAK_LIMIT_INT;
     //书架总数
-    if(!srvdb_shelf_find(msg, &sc.shelf_all)){
+    if(!srvdb_shelf_find(msg, &sc.shelves_all)){
 #if DEBUG_TRACE
-        fprintf(stderr, "srvdb_book_count() error: on_reading\n");
+        fprintf(stderr, "srvdb_book_count() error: shelf\n");
 #endif
         return(0);
     }

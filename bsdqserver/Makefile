@@ -1,4 +1,4 @@
-all: bsdq_server bsdq_client
+all: bsdq_server bsdq_client#srvdbmain
 
 CC = gcc
 CFLAGS = -Wall -pedantic
@@ -30,5 +30,5 @@ bsdq_client.o: bsdq_client.c socketcom.h clisrv.h
 .PHONY += clean
 
 clean: 
-	rm -rf *.o bsdq_server bsdq_client
+	rm -rf *.o bsdq_server bsdq_client srvdbmain
 

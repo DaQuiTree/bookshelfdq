@@ -9,7 +9,7 @@ void insert_message(message_cs_t *msg);
 void delete_message(message_cs_t *msg);
 void update_message(message_cs_t *msg);
 void find_message(message_cs_t *msg);
-
+void count_message(message_cs_t *msg);
 void nextstep(message_cs_t *msg);
 
 int main(void)
@@ -23,9 +23,10 @@ int main(void)
     }
     printf("client init success\n");
 
-    find_message(&msg);
+    delete_message(&msg);
     nextstep(&msg);
-
+    count_message(&msg);
+    nextstep(&msg);
     socket_client_close();
     exit(EXIT_SUCCESS);
 }
@@ -33,20 +34,22 @@ int main(void)
 void insert_message(message_cs_t *msg)
 {
     strcpy(msg->user, "daqui");
+    msg->stuff.book.borrowed = 0;
+    msg->stuff.book.on_reading = 0;
     msg->request = req_insert_book_e;
-    msg->stuff.book.code[0] = 4;
-    msg->stuff.book.code[1] = 0x51;
-    strcpy(msg->stuff.book.name, "史记");
-    strcpy(msg->stuff.book.author, "司马迁");
-    strcpy(msg->stuff.book.label, "史家经典, 古籍, 政治历史");
-    strcpy(msg->stuff.book.encoding_time, "20190202晚");
+    msg->stuff.book.code[0] = 3;
+    msg->stuff.book.code[1] = 0x31;
+    strcpy(msg->stuff.book.name, "撒哈啦的故事");
+    strcpy(msg->stuff.book.author, "三毛");
+    strcpy(msg->stuff.book.label, "流浪文学, 自由生活");
+    strcpy(msg->stuff.book.encoding_time, "20190204下午");
 }
 
 void delete_message(message_cs_t *msg)
 {
     strcpy(msg->user, "daqui");
     msg->request = req_delete_book_e;
-    msg->stuff.book.code[2] = 24;
+    msg->stuff.book.code[2] = 8;
 }
 
 void update_message(message_cs_t *msg)
@@ -81,6 +84,7 @@ void nextstep(message_cs_t *msg)
 {
     int res;
     int tempPos;
+    book_count_t bc;
 
     res = socket_client_send_request(msg);
     if(!res){
@@ -114,6 +118,11 @@ void nextstep(message_cs_t *msg)
                 printf("%d %s %s %s\n", msg->stuff.book.code[2], msg->stuff.book.name, msg->stuff.book.author, msg->stuff.book.label);
             }
         }else{
+            if(msg->request == req_count_book_e){
+                bc = *(book_count_t *)&msg->extra_info;
+                printf("all: %d, borrowed: %d, on_reading: %d, unsorted: %d\n",\
+                        bc.books_all, bc.books_borrowed, bc.books_on_reading, bc.books_unsorted);
+            }
             break;
         }
     }while(1);
@@ -125,4 +134,12 @@ void nextstep(message_cs_t *msg)
     }else{
         printf("client r_failed %s\n", msg->error_text);
     }
+}
+
+void count_message(message_cs_t *msg)
+{
+    strcpy(msg->user, "daqui");
+    msg->stuff.book.code[0] = NON_SENSE_INT;
+    msg->stuff.book.code[1] = NON_SENSE_INT;
+    msg->request = req_count_book_e;
 }
