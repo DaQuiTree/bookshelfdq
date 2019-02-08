@@ -37,6 +37,7 @@ static int shelf_record[MAX_SHELF_NUM] = {0};
 //书籍相关变量
 static int book_dbm_pos = 0;
 static int book_search_pos = 0;
+static int book_search_step = 10;
 
 static void shelf_record_obtain(void);
 static int shelf_record_save(void);
@@ -82,21 +83,20 @@ int clidb_init(char* login_user)
 
 int clidb_shelf_insert(shelf_entry_t *user_shelf)
 {
-    clidb_shelf_real_insert(user_shelf, SHELF_INSERT_MODE);
+   return(clidb_shelf_real_insert(user_shelf, SHELF_INSERT_MODE));
 }
 
 int clidb_shelf_synchronize(shelf_entry_t *user_shelf)
 {
-    clidb_shelf_real_insert(user_shelf, SHELF_SYNC_MODE;
+    return(clidb_shelf_real_insert(user_shelf, SHELF_SYNC_MODE));
 }
 
 int clidb_shelf_delete(int shelfno)
 {
     datum local_key_datum;
-    datum local_data_datum;
     int result = 0;
 
-    char key_to_del[USER_NAME_LEN + 2 + 1];
+    char key_to_del[USER_NAME_LEN + 16 + 1];
 
     if(!shelf_dbm_ptr){
 #if DEBUG_TRACE
@@ -143,7 +143,7 @@ int clidb_shelf_get(int shelfno, shelf_entry_t *user_shelf)
     }
 
     memset(key_to_get, '\0', sizeof(key_to_get));
-    sprintf(key_to_get, "%s_shelf_%d", current_user, user_shelf->code);
+    sprintf(key_to_get, "%s_shelf_%d", current_user, shelfno);
     local_key_datum.dptr = (void *)key_to_get;
     local_key_datum.dsize = sizeof(key_to_get);
 
@@ -160,7 +160,7 @@ int clidb_shelf_get(int shelfno, shelf_entry_t *user_shelf)
     return 0;
 }
 
-int clidb_shelf_exits(int shelfno)
+int clidb_shelf_exists(int shelfno)
 {
     if (shelfno > MAX_SHELF_NUM)return(0);
     if (shelf_record[shelfno-1] > 0)return(1);
@@ -173,7 +173,7 @@ static int clidb_shelf_real_insert(shelf_entry_t *user_shelf, int mode)
     datum local_data_datum;
     int result = 0;
 
-    char key_to_add[USER_NAME_LEN + 2 + 1];//书架编号字符最多占两个字节
+    char key_to_add[USER_NAME_LEN + 16 + 1];//书架编号字符最多占两个字节
 
     if(!shelf_dbm_ptr){
 #if DEBUG_TRACE
@@ -194,11 +194,11 @@ static int clidb_shelf_real_insert(shelf_entry_t *user_shelf, int mode)
 #endif
         return(0);
     }
-
+    
     //更新记录
-    if (mode == INSERT_MODE_SYNC){
+    if (mode == SHELF_SYNC_MODE){
         SHELF_RECORD_SYNC(user_shelf->code);
-    }else if(mode == INSERT_MODE_INS){
+    }else if(mode == SHELF_INSERT_MODE){
         SHELF_RECORD_SET(user_shelf->code);
         if(!shelf_record_save()){
 #if DEBUG_TRACE
@@ -232,6 +232,7 @@ static void shelf_record_obtain(void)
     local_data_datum = dbm_fetch(shelf_dbm_ptr, local_key_datum); 
     if(local_data_datum.dptr){
         memcpy((void *)shelf_record, local_data_datum.dptr, local_data_datum.dsize);
+        return;
     }
 
 #if DEBUG_TRACE
@@ -256,6 +257,8 @@ static int shelf_record_save(void)
     sprintf(key_to_add, "%s_shelf_record", current_user);
     local_key_datum.dptr = (void *)key_to_add;
     local_key_datum.dsize = sizeof(key_to_add);
+    local_data_datum.dptr = (void *)shelf_record;
+    local_data_datum.dsize = sizeof(shelf_record);
     result = dbm_store(shelf_dbm_ptr, local_key_datum, local_data_datum, DBM_REPLACE);
     if(result != 0){
 #if DEBUG_TRACE
@@ -267,10 +270,15 @@ static int shelf_record_save(void)
 }
 
 
-int clidb_book_reset(void)
+void clidb_book_reset(void)
 {
     book_dbm_pos = 0;
     book_search_pos = 0;
+}
+
+void clidb_book_set_step(int step)
+{
+
 }
 
 int clidb_book_insert(book_entry_t *user_book)
@@ -338,7 +346,7 @@ int clidb_book_backward_get(book_entry_t *user_book)
     return 0;
 }
 
-int clidb_book_forward_get(shelf_entry_t *user_book)
+int clidb_book_forward_get(book_entry_t *user_book)
 {
     char key_to_get[16];
     datum local_key_datum;
@@ -351,9 +359,9 @@ int clidb_book_forward_get(shelf_entry_t *user_book)
         return(0);
     }
 
-    if(book_search_pos+1 >= book_dbm_pos)return(-1);
+    if(book_search_pos+1 > book_dbm_pos)return(-1);
     memset(key_to_get, '\0', sizeof(key_to_get));
-    sprintf(key_to_get, "book_%d", ++book_search_pos);
+    sprintf(key_to_get, "book_%d", book_search_pos++);
     local_key_datum.dptr = (void *)key_to_get;
     local_key_datum.dsize = sizeof(key_to_get);
 
