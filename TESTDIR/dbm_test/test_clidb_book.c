@@ -35,24 +35,11 @@ int main()
         printf("%d insert ok\n", i++);
     }
 
-    for(i = 0; i < 15; i++){
-        result = clidb_book_backward_get(&newbook);
-        if(result == 1){
-            showresult(&newbook);
-        }else if(result == -1){
-            printf("backward no more.\n");
-        }else{
-            printf("error");
-            exit(1);
-        }
-    }
-
-    clidb_book_reset();
-
     getbook(&book, "拉开建立空间");
     if(clidb_book_insert(&book)){
         printf("%d insert ok\n", i++);
     }
+
     getbook(&book, "离开立空");
     if(clidb_book_insert(&book)){
         printf("%d insert ok\n", i++);
@@ -81,6 +68,8 @@ int main()
     if(clidb_book_insert(&book)){
         printf("%d insert ok\n", i++);
     }
+
+    clidb_book_reset();
     getbook(&book, "去玩儿");
     if(clidb_book_insert(&book)){
         printf("%d insert ok\n", i++);
@@ -91,13 +80,40 @@ int main()
     }
 
     for(i = 0; i < 15; i++){
-        result = clidb_book_forward_get(&newbook);
+        result = clidb_book_get(&newbook);
         if(result == 1){
             showresult(&newbook);
         }else if(result == -1){
             printf("forward no more.\n");
         }else{
-            printf("error");
+            printf("error\n");
+            exit(1);
+        }
+    }
+
+    clidb_book_search_step(4);
+    while(clidb_book_backward_mode()){
+        for(i = 0; i < 4; i++){
+            result = clidb_book_get(&newbook);
+            if(result == 1){
+                showresult(&newbook);
+            }else if(result == -1){
+                printf("backward no more.\n");
+            }else{
+                printf("error\n");
+                exit(1);
+            }
+        }
+    }
+
+    for(i = 0; i < 4; i++){
+        result = clidb_book_get(&newbook);
+        if(result == 1){
+            showresult(&newbook);
+        }else if(result == -1){
+            printf("forward no more.\n");
+        }else{
+            printf("error\n");
             exit(1);
         }
     }

@@ -276,9 +276,9 @@ void clidb_book_reset(void)
     book_search_pos = 0;
 }
 
-void clidb_book_set_step(int step)
+void clidb_book_search_step(int step)
 {
-
+    book_search_step = step;
 }
 
 int clidb_book_insert(book_entry_t *user_book)
@@ -296,7 +296,6 @@ int clidb_book_insert(book_entry_t *user_book)
         return 0;
     }
 
-    book_search_pos = book_dbm_pos;
     memset(key_to_add, '\0', sizeof(key_to_add));
     sprintf(key_to_add, "book_%d", book_dbm_pos++);
     local_key_datum.dptr = (void *)key_to_add;
@@ -314,7 +313,17 @@ int clidb_book_insert(book_entry_t *user_book)
     return(1);
 }
 
-int clidb_book_backward_get(book_entry_t *user_book)
+int clidb_book_backward_mode(void)
+{
+    int temp_pos = 0;
+
+    temp_pos = (book_search_pos-1)/book_search_step*book_search_step - book_search_step;
+    if(temp_pos < 0)return(0); 
+    book_search_pos = temp_pos;
+    return(1);
+}   
+
+int clidb_book_get(book_entry_t *user_book)
 {
     char key_to_get[16];
     datum local_key_datum;
@@ -327,39 +336,7 @@ int clidb_book_backward_get(book_entry_t *user_book)
         return(0);
     }
 
-    if(book_search_pos-1 < 0)return(-1);
-    memset(key_to_get, '\0', sizeof(key_to_get));
-    sprintf(key_to_get, "book_%d", --book_search_pos);
-    local_key_datum.dptr = (void *)key_to_get;
-    local_key_datum.dsize = sizeof(key_to_get);
-
-    local_data_datum = dbm_fetch(book_dbm_ptr, local_key_datum); 
-    if(local_data_datum.dptr){
-        memcpy((void *)user_book, local_data_datum.dptr, local_data_datum.dsize);
-        return(1);
-    }
-
-#if DEBUG_TRACE
-    fprintf(stderr, "clidb_book_backward_get(): did not get book info.\n");
-#endif
-
-    return 0;
-}
-
-int clidb_book_forward_get(book_entry_t *user_book)
-{
-    char key_to_get[16];
-    datum local_key_datum;
-    datum local_data_datum;
-
-    if(!book_dbm_ptr){
-#if DEBUG_TRACE
-        fprintf(stderr, "clidb_book_insert() error: book dbm has not been initialized.\n");
-#endif
-        return(0);
-    }
-
-    if(book_search_pos+1 > book_dbm_pos)return(-1);
+    if(book_search_pos > book_dbm_pos-1)return(-1);
     memset(key_to_get, '\0', sizeof(key_to_get));
     sprintf(key_to_get, "book_%d", book_search_pos++);
     local_key_datum.dptr = (void *)key_to_get;
@@ -377,3 +354,4 @@ int clidb_book_forward_get(book_entry_t *user_book)
 
     return 0;
 }
+
