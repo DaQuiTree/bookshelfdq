@@ -26,6 +26,7 @@ static DBM *shelf_dbm_ptr = NULL;
 static DBM *book_dbm_ptr = NULL;
 
 //记录存入数据库的书架编号
+static int shelf_record_init = 1;
 static int shelf_record[MAX_SHELF_NUM] = {0};
 #define SHELF_RECORD_UNSET(x) (shelf_record[x-1] = 0)
 #define SHELF_RECORD_SET(x) (shelf_record[x-1] = 1)
@@ -39,8 +40,8 @@ static int book_dbm_pos = 0;
 static int book_search_pos = 0;
 static int book_search_step = 10;
 
-static void shelf_record_obtain(void);
 static int shelf_record_save(void);
+static int shelf_record_obtain(void);
 static int clidb_shelf_real_insert(shelf_entry_t *user_shelf, int mode);
 
 int clidb_init(char* login_user)
@@ -76,8 +77,7 @@ int clidb_init(char* login_user)
     }
 
     //获取存入数据库的书架编号
-    shelf_record_obtain();
-
+    (void)shelf_record_obtain();
     return (1);
 }
 
@@ -167,6 +167,12 @@ int clidb_shelf_exists(int shelfno)
     return(0);
 }
 
+int clidb_shelf_not_syncs(int shelfno){
+    if (shelfno > MAX_SHELF_NUM)return(0);
+    if (shelf_record[shelfno-1] == 1)return(1);
+    return(0);
+}
+
 static int clidb_shelf_real_insert(shelf_entry_t *user_shelf, int mode)
 {
     datum local_key_datum;
@@ -196,22 +202,23 @@ static int clidb_shelf_real_insert(shelf_entry_t *user_shelf, int mode)
     }
     
     //更新记录
-    if (mode == SHELF_SYNC_MODE){
+    if(mode == SHELF_SYNC_MODE){
         SHELF_RECORD_SYNC(user_shelf->code);
     }else if(mode == SHELF_INSERT_MODE){
         SHELF_RECORD_SET(user_shelf->code);
-        if(!shelf_record_save()){
+    }
+
+    if(!shelf_record_save()){
 #if DEBUG_TRACE
-            fprintf(stderr, "clidb_shelf_insert() error: shelf_record_save() failed.\n");
+        fprintf(stderr, "clidb_shelf_insert() error: shelf_record_save() failed.\n");
 #endif
-            return(0);
-        }
+        return(0);
     }
 
     return(1);
 }
 
-static void shelf_record_obtain(void)
+static int shelf_record_obtain(void)
 {
     char key_to_get[USER_NAME_LEN + 16 + 1];
     datum local_key_datum;
@@ -221,7 +228,7 @@ static void shelf_record_obtain(void)
 #if DEBUG_TRACE
         fprintf(stderr, "clidb_shelf_insert() error: shelf dbm has not been initialized.\n");
 #endif
-        return;
+        return(0);
     }
 
     memset(key_to_get, '\0', sizeof(key_to_get));
@@ -232,12 +239,22 @@ static void shelf_record_obtain(void)
     local_data_datum = dbm_fetch(shelf_dbm_ptr, local_key_datum); 
     if(local_data_datum.dptr){
         memcpy((void *)shelf_record, local_data_datum.dptr, local_data_datum.dsize);
-        return;
+#if DEBUG_TRACE
+        int i;
+        for(i = 0; i < MAX_SHELF_NUM; i++){
+            fprintf(stderr, "%d ",shelf_record[i]);
+        }
+        printf("\n");
+#endif
+        return(1);
     }
 
 #if DEBUG_TRACE
         fprintf(stderr, "shelf_record_obtain(): did not obtain shelf record info.\n");
 #endif
+        
+    shelf_record_init = 1;//未获取到shelf_record,需要初始化
+    return(0);
 }
 
 static int shelf_record_save(void)
@@ -251,7 +268,7 @@ static int shelf_record_save(void)
 #if DEBUG_TRACE
         fprintf(stderr, "clidb_shelf_insert() error: shelf dbm has not been initialized.\n");
 #endif
-        return 0;
+        return(0);
     }
     memset(key_to_add, '\0', sizeof(key_to_add));
     sprintf(key_to_add, "%s_shelf_record", current_user);
@@ -269,6 +286,26 @@ static int shelf_record_save(void)
     return(1);
 }
 
+int shelf_record_sort(void) 
+{
+    int i;
+
+    for(i = 0; i < MAX_SHELF_NUM; i++)
+        if(shelf_record[i] == 2)shelf_record[i] = 1;//2:sync
+    if(!shelf_record_save()){
+#if DEBUG_TRACE
+        fprintf(stderr, "clidb_shelf_delete() error: shelf_record_save() failed.\n");
+#endif
+        return(0);
+    }
+#if DEBUG_TRACE
+        for(i = 0; i < MAX_SHELF_NUM; i++){
+            fprintf(stderr, "%d ",shelf_record[i]);
+        }
+        printf("\n");
+#endif
+    return(1);
+}
 
 void clidb_book_reset(void)
 {
