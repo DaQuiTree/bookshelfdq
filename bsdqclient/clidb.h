@@ -12,7 +12,8 @@ int clidb_shelf_not_syncs(int shelfno);
 int clidb_shelf_delete(int shelfno);
 int clidb_shelf_get(int shelfno, shelf_entry_t *user_shelf);
 int clidb_shelf_exists(int shelfno);
-int shelf_record_sort(void);
+int clidb_shelf_realno(int pos);
+int clidb_shelf_record_sort(void);
 
 //书籍相关
 void clidb_book_reset(void);//清空书籍相关的dbm

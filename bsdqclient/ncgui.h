@@ -4,6 +4,12 @@
 #include "clisrv.h"
 
 typedef enum{
+    page_mainmenu_e,
+    page_lookthrough_e,
+    page_nonsense_e
+}ui_page_type_e;
+
+typedef enum{
     menu_look_through_e,
     menu_build_shelf_e,
     menu_search_book_e,

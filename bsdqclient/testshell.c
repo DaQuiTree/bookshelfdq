@@ -16,5 +16,8 @@ int main()
         fprintf(stderr, "get client books info failed\n");
         exit(EXIT_FAILURE);
     }
+
+    client_start_gui();
+
     exit(EXIT_SUCCESS);
 }

@@ -286,7 +286,18 @@ static int shelf_record_save(void)
     return(1);
 }
 
-int shelf_record_sort(void) 
+int clidb_shelf_realno(int pos)
+{
+    int realno = 0;
+
+    while(pos--){
+        while(!clidb_shelf_exists(++realno));
+    }
+
+    return(realno);
+}
+
+int clidb_shelf_record_sort(void) 
 {
     int i;
 

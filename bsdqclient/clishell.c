@@ -7,6 +7,7 @@
 #include "clishell.h"
 #include "clisrv.h"
 #include "clidb.h"
+#include "ncgui.h"
 
 char login_user[USER_NAME_LEN+1];
 book_count_t bc;
@@ -170,7 +171,7 @@ int client_shelves_info_sync(void)
     }
 
     //重新更新书架记录
-    res = shelf_record_sort();
+    res = clidb_shelf_record_sort();
     if(!res){
 #if DEBUG_TRACE
         fprintf(stderr, "shelves_sync error: sort shelf error.\n");
@@ -226,4 +227,28 @@ int client_books_info_sync(void)
     fprintf(stderr, "books_sync error: client get response error.\n");
 #endif
     return(0);
+}
+
+int client_start_gui(void)
+{
+    int running = 1;
+    
+    ncgui_init(login_user);
+    while(running){
+        ncgui_display_mainmenu_page(sc, bc);
+        switch(ncgui_get_choice())
+        {
+            case menu_look_through_e:
+                ncgui_clear_all_screen();
+                ncgui_display_lookthrough_page();
+                break;
+            case menu_quit_e:
+                running = 0;
+                break;
+            default: break;
+        }
+    }
+    ncgui_close();
+
+    return(1);
 }
