@@ -22,6 +22,7 @@ typedef struct{
     int nstep;
     int current_row;
     int last_row;
+    int max_row;//滑块最多可移动行
 }slider_t;
 
 void ncgui_init(char* user);

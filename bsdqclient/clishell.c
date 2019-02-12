@@ -235,6 +235,7 @@ int client_start_gui(void)
     
     ncgui_init(login_user);
     while(running){
+        ncgui_clear_all_screen();
         ncgui_display_mainmenu_page(sc, bc);
         switch(ncgui_get_choice())
         {

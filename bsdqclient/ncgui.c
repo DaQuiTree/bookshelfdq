@@ -36,7 +36,7 @@ char *menu_option[] = {
 
 WINDOW *mainwin;
 
-static int get_choice(ui_page_type_e ptype, slider_t *sld, int row_max);
+static int get_choice(ui_page_type_e ptype, slider_t *sld, int logic_row_max);
 static void show_shelf_info(int posx, int posy, shelf_entry_t *local_shelf);
 static void move_slider(slider_t *sld);
 static void print_error(char* error);
@@ -49,6 +49,7 @@ void ncgui_init(char* user)
     strcpy(login_user, user);
     mainwin = subwin(stdscr, WIN_HIGHT, WIN_WIDTH, 0, 0);
     box(mainwin, ACS_VLINE, ACS_HLINE);
+    curs_set(0);
 }
 
 void ncgui_close(void)
@@ -78,6 +79,7 @@ ui_menu_e ncgui_get_choice(void)
     mainmenu_slider.nstep = 2;
     mainmenu_slider.current_row = 0;
     mainmenu_slider.last_row = 0;
+    mainmenu_slider.max_row = 3;
 
     move_slider(&mainmenu_slider);
     return((ui_menu_e)get_choice(page_mainmenu_e, &mainmenu_slider, 3));
@@ -115,7 +117,6 @@ void ncgui_display_mainmenu_page(shelf_count_t sc, book_count_t bc)
         option_ptr++;
     }
 
-    move(PROMPT_ROW, 1);
     touchwin(stdscr);
     refresh();
 }
@@ -123,7 +124,7 @@ void ncgui_display_mainmenu_page(shelf_count_t sc, book_count_t bc)
 void ncgui_display_lookthrough_page(void)
 {
     int pad_posx = GREET_ROW+2, pad_posy = 8;
-    int first_line = 0, max_rows, choice = 0;
+    int first_line = 0, max_rows, logic_rows, choice = 0;
     int i, nshelves = 0;
     shelf_entry_t local_shelf;
     slider_t slider;
@@ -147,30 +148,38 @@ void ncgui_display_lookthrough_page(void)
                 print_error(local_shelf.name);
                 return;
             }
-            mvwprintw(padwin, i-1, 0, local_shelf.name);
-            nshelves++; 
+            mvwprintw(padwin, nshelves++, 0, local_shelf.name);
         }
     }
 
     //计算choice最大值
-    nshelves > PAD_BOXED_HIGHT-1 ? (max_rows=PAD_BOXED_HIGHT-1) : (max_rows=nshelves-1);
+    if(nshelves > PAD_BOXED_HIGHT - 1)
+        max_rows = PAD_BOXED_HIGHT - 1;
+    else
+        max_rows = nshelves - 1;
+    logic_rows = nshelves - 1;
 
+    //滑块初始位置
     slider.start_posx = pad_posx;
     slider.start_posy = pad_posy - 3;
     slider.nstep = 1;
     slider.current_row = slider.last_row = 0;
-
+    slider.max_row = max_rows;
 
     move_slider(&slider);
     clidb_shelf_get(clidb_shelf_realno(first_line+choice+1), &local_shelf);
     show_shelf_info(pad_posx, WIN_WIDTH-PAD_BOXED_WIDTH, &local_shelf);
 
     while(choice != -1){
-        prefresh(padwin, first_line, 0, pad_posx, pad_posy, pad_posx + PAD_BOXED_HIGHT, PAD_BOXED_WIDTH);
-        choice = get_choice(page_lookthrough_e, &slider, max_rows);
+        prefresh(padwin, first_line, 0, pad_posx, pad_posy, pad_posx+PAD_BOXED_HIGHT-1, PAD_BOXED_WIDTH);
+        choice = get_choice(page_lookthrough_e, &slider, logic_rows);
         if(choice != -1){
+           //获取书架信息并显示
            clidb_shelf_get(clidb_shelf_realno(first_line+choice+1), &local_shelf);
            show_shelf_info(pad_posx, WIN_WIDTH-PAD_BOXED_WIDTH, &local_shelf);
+           //滚动屏幕
+           if(choice > max_rows)first_line++;
+           if(choice == 0)first_line = 0;
         }
     }
 }
@@ -190,22 +199,26 @@ static void show_shelf_info(int startx, int starty, shelf_entry_t *local_shelf)
 
 static void clear_line(int startx, int starty)
 {
-    int i = 0;
-    int len = WIN_WIDTH-starty-1;
+    char blank_line[WIN_WIDTH]={0};
 
-    move(startx, starty);
-    for(i = 0; i < len; i++)
-        waddch(mainwin, 'x');
+    memset(blank_line, ' ', WIN_WIDTH-starty-1);
+    mvwprintw(mainwin, startx, starty, blank_line);
 
     touchwin(stdscr);
     refresh();
 }
 
-static int get_choice(ui_page_type_e ptype, slider_t *sld, int row_max)
+static int get_choice(ui_page_type_e ptype, slider_t *sld, int logic_row)
 {
     static int selected_row = 0;
+    static ui_page_type_e local_ptype = page_nonsense_e;
     int key = 0;
     int local_key_esc = 27;//27:ESC
+
+    if(local_ptype != ptype){
+        local_ptype = ptype;
+        selected_row = 0;
+    }
 
     keypad(stdscr, TRUE);
     cbreak();
@@ -216,7 +229,7 @@ static int get_choice(ui_page_type_e ptype, slider_t *sld, int row_max)
         if (key == KEY_UP){
             sld->last_row = selected_row;
             if(selected_row == 0)
-                selected_row = row_max;
+                selected_row = logic_row;
             else
                 selected_row--;
             sld->current_row = selected_row;
@@ -225,7 +238,7 @@ static int get_choice(ui_page_type_e ptype, slider_t *sld, int row_max)
         }
         if(key == KEY_DOWN){
             sld->last_row = selected_row;
-            if(selected_row == row_max)
+            if(selected_row == logic_row)
                 selected_row = 0;
             else
                 selected_row++;
@@ -247,6 +260,9 @@ static int get_choice(ui_page_type_e ptype, slider_t *sld, int row_max)
 //移动并显示滑块
 static void move_slider(slider_t *sld)
 {
+    if(sld->current_row > sld->max_row)sld->current_row = sld->max_row;
+    if(sld->last_row > sld->max_row)sld->last_row = sld->max_row;
+
     //取消显示上一个滑块
     mvwprintw(mainwin, sld->start_posx + sld->last_row*sld->nstep, sld->start_posy, " ");
 
