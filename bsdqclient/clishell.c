@@ -7,11 +7,10 @@
 #include "clishell.h"
 #include "clisrv.h"
 #include "clidb.h"
-#include "ncgui.h"
 
 char login_user[USER_NAME_LEN+1];
-book_count_t bc;
-shelf_count_t sc;
+
+static int find_from_server(message_cs_t msg);
 
 int client_initialize(char* host, char* user)
 {
@@ -33,7 +32,7 @@ int client_initialize(char* host, char* user)
     return(1);
 }
 
-int client_shelves_info_sync(void)
+int client_shelves_info_sync(shelf_count_t *sc)
 {
     message_cs_t msgreq, msgget;
     int res, i;
@@ -59,9 +58,9 @@ int client_shelves_info_sync(void)
         return(0);
     }
     if(msgget.response == r_success){
-        sc = *(shelf_count_t *)&msgget.extra_info;
+        *sc = *(shelf_count_t *)&msgget.extra_info;
 #if DEBUG_TRACE
-        printf("shelf all: %d\n", sc.shelves_all);
+        printf("shelf all: %d\n", sc->shelves_all);
 #endif
     }else if(msgget.response == r_failed){
 #if DEBUG_TRACE
@@ -179,7 +178,7 @@ int client_shelves_info_sync(void)
         return(0);
     }
 
-    if(shelf_cnt != sc.shelves_all){
+    if(shelf_cnt != sc->shelves_all){
 #if DEBUG_TRACE
         fprintf(stderr, "shelves_sync error: shelf sync num not equal to remote shelf num.\n");
 #endif
@@ -189,7 +188,7 @@ int client_shelves_info_sync(void)
     return(1);
 }
 
-int client_books_info_sync(void)
+int client_books_info_sync(book_count_t *bc)
 {
     message_cs_t msgreq, msgget;
     int res;
@@ -216,10 +215,10 @@ int client_books_info_sync(void)
     }
 
     if(msgget.response == r_success){
-        bc = *(book_count_t *)&msgget.extra_info;
+        *bc = *(book_count_t *)&msgget.extra_info;
 #if DEBUG_TRACE
         printf("all: %d, borrowed: %d, on_reading: %d, unsorted: %d\n",\
-                bc.books_all, bc.books_borrowed, bc.books_on_reading, bc.books_unsorted);
+                bc->books_all, bc->books_borrowed, bc->books_on_reading, bc->books_unsorted);
 #endif
         return(1);
     }
@@ -229,27 +228,68 @@ int client_books_info_sync(void)
     return(0);
 }
 
-int client_start_gui(void)
+
+int client_shelf_loading_book(int shelfno, int bookno)
 {
-    int running = 1;
-    
-    ncgui_init(login_user);
-    while(running){
-        ncgui_clear_all_screen();
-        ncgui_display_mainmenu_page(sc, bc);
-        switch(ncgui_get_choice())
-        {
-            case menu_look_through_e:
-                ncgui_clear_all_screen();
-                ncgui_display_lookthrough_page();
-                break;
-            case menu_quit_e:
-                running = 0;
-                break;
-            default: break;
-        }
+    message_cs_t msg;
+
+    strcpy(msg.user, login_user);
+    msg.request = req_find_book_e;
+    msg.stuff.book.code[0] = shelfno;
+    msg.stuff.book.code[1] = NON_SENSE_INT;
+    msg.stuff.book.code[2] = bookno;
+    strcpy(msg.stuff.book.name, "-");
+    strcpy(msg.stuff.book.author, "-");
+    strcpy(msg.stuff.book.label, "-");
+    msg.stuff.book.borrowed = 0;
+    msg.stuff.book.on_reading = 0;
+
+    find_from_server(msg);
+}
+
+static int find_from_server(message_cs_t msg)
+{
+    int res;
+    int tempPos;
+    message_cs_t msg_copy;
+
+    msg_copy = msg;
+
+    res = socket_client_send_request(&msg);
+    if(!res){
+#if DEBUG_TRACE
+        fprintf(stderr, "client send request error.\n");
+#endif
+        return(0);
     }
-    ncgui_close();
+
+    do{
+        res = socket_client_get_response(&msg);
+        if(!res){
+#if DEBUG_TRACE
+            fprintf(stderr, "client get response error.\n");
+#endif
+            return(0);
+        }
+        //检查结果
+        if(msg.response == r_failed){
+            break;
+        }else if(msg.response == r_find_end){
+#if DEBUG_TRACE
+            printf("Client find no more.\n");
+#endif
+            break;
+        }else if(msg.response == r_find_end_more){
+#if DEBUG_TRACE
+            printf("new find request send!\n");
+#endif
+            break;
+        }else{
+            clidb_book_insert(&msg.stuff.book);
+        }
+    }while(1);
 
     return(1);
 }
+
+

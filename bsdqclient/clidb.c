@@ -324,10 +324,6 @@ void clidb_book_reset(void)
     book_search_pos = 0;
 }
 
-void clidb_book_search_step(int step)
-{
-    book_search_step = step;
-}
 
 int clidb_book_insert(book_entry_t *user_book)
 {
@@ -359,6 +355,16 @@ int clidb_book_insert(book_entry_t *user_book)
     }
 
     return(1);
+}
+
+void clidb_book_search_reset(void)
+{
+    book_search_pos = 0;
+}
+
+void clidb_book_search_step(int step)
+{
+    book_search_step = step;
 }
 
 int clidb_book_backward_mode(void)

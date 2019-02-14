@@ -1,7 +1,14 @@
 #ifndef _NCGUI_H_
 #define _NCGUI_H_
 
+#include <ncurses.h>
 #include "clisrv.h"
+
+typedef enum{
+    lt_option_open,
+    lt_option_destroy,
+    lt_option_newbook
+}ui_lookthrough_option_e;
 
 typedef enum{
     page_mainmenu_e,
@@ -17,6 +24,7 @@ typedef enum{
 }ui_menu_e;
 
 typedef struct{
+    WINDOW *win;
     int start_posx;
     int start_posy;
     int nstep;
@@ -25,12 +33,14 @@ typedef struct{
     int max_row;//滑块最多可移动行
 }slider_t;
 
-void ncgui_init(char* user);
+int client_start_gui(char* hostname, char *user);
+
+void ncgui_init(void);
 void ncgui_close(void);
 void ncgui_clear_all_screen(void);
 
 ui_menu_e ncgui_get_choice(void);
-void ncgui_display_mainmenu_page(shelf_count_t sc, book_count_t bc);
+void ncgui_display_mainmenu_page(void);
 void ncgui_display_lookthrough_page(void);
 
 #endif

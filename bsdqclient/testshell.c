@@ -1,23 +1,31 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "clishell.h"
+#include "ncgui.h"
 
 int main()
 {
-    if(!client_initialize("127.0.0.1", "daqui")){
-        fprintf(stderr, "client initialize failed\n");
+    int running = 1;
+    
+    if(!client_start_gui("127.0.0.1", "daqui"))
         exit(EXIT_FAILURE);
-    }
-    if(!client_shelves_info_sync()){
-        fprintf(stderr, "get client shelve info failed\n");
-        exit(EXIT_FAILURE);
-    }
-    if(!client_books_info_sync()){
-        fprintf(stderr, "get client books info failed\n");
-        exit(EXIT_FAILURE);
-    }
 
-    client_start_gui();
+    ncgui_init();
+    while(running){
+        ncgui_clear_all_screen();
+        ncgui_display_mainmenu_page();
+        switch(ncgui_get_choice())
+        {
+            case menu_look_through_e:
+                ncgui_clear_all_screen();
+                ncgui_display_lookthrough_page();
+                break;
+            case menu_quit_e:
+                running = 0;
+                break;
+            default: break;
+        }
+    }
+    ncgui_close();
 
     exit(EXIT_SUCCESS);
 }
