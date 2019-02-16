@@ -10,6 +10,11 @@
 #include "socketcom.h"
 #include "clidb.h"
 
+char HEX_ASC[] = {'0', '1', '2', '3',\
+                  '4', '5', '6', '7',\
+                  '8', '9', 'A', 'B',\
+                  'C', 'D', 'E', 'F'};
+
 //主屏幕尺寸
 #define WIN_HIGHT 24
 #define WIN_WIDTH 68
@@ -62,8 +67,12 @@ static void clear_line(int startx, int starty);
 static void show_shelf_info(int posx, int posy, shelf_entry_t *local_shelf);
 static void draw_lt_option_box(WINDOW **win, slider_t *sld);
 static void destroy_lt_option_box(WINDOW **win);
+
+//浏览数家书籍相关
 static void display_bookinfo_page(int shelfno);
-static int loading_bookinfo(WINDOW *win, int shelfno);
+static int next_page_bookinfo(WINDOW *win, int shelfno);
+static int last_page_bookinfo(WINDOW *win, int shelfno);
+static void show_book_info(int startx, int starty, book_entry_t *local_book);
 
 int client_start_gui(char* hostname, char *user)
 {
@@ -259,20 +268,65 @@ void ncgui_display_lookthrough_page(void)
 static void display_bookinfo_page(int shelfno)
 { 
     WINDOW *padwin;
+    int pad_posx = GREET_ROW+2, pad_posy = 8, fisrt_line = 0;
+    int nbooks, logic_rows;
+    book_entry_t local_book;
+    slider_t bi_slider;
+    int book_page_cnt = 0;
+    int bi_key;
 
     padwin = newpad(PAD_HIGHT, PAD_WIDTH);
-    //初始化书籍信息
-    if(!loading_bookinfo(padwin, shelfno))return;
 
+    //初始化书籍信息
+    if((nbooks = next_page_bookinfo(padwin, shelfno)) == -1)return;
+
+    //计算实际移动的和逻辑上的最大值
+    if(nbooks > PAD_BOXED_HIGHT - 1)
+        bi_slider.max_row = PAD_BOXED_HIGHT - 1;
+    else
+        bi_slider.max_row = nbooks - 1;
+    logic_rows = nbooks - 1;
+
+    //滑块初始位置
+    bi_slider.win = mainwin;
+    bi_slider.start_posx = pad_posx;
+    bi_slider.start_posy = pad_posy - 3;
+    bi_slider.nstep = 1;
+    bi_slider.current_row = bi_slider.last_row = 0;
+    move_slider(&bi_slider, 0);
+    clidb_book_peek(&local_book, book_page_cnt*PAD_HIGHT+0);
+    show_book_info(pad_posx, WIN_WIDTH-PAD_BOXED_WIDTH, &local_book);
+
+    //获取用户输入
+    while(bi_key != LOCAL_KEY_ESC){
+        prefresh(padwin, first_line, 0, pad_posx, pad_posy, pad_posx+PAD_BOXED_HIGHT-1, PAD_BOXED_WIDTH);
+        lt_key = get_choice(page_lookthrough_e, &lt_slider, logic_rows);
+        if(lt_key != LOCAL_KEY_ESC){
+            //获取书架信息并显示
+            clidb_shelf_get(clidb_shelf_realno(lt_slider.current_row+1), &local_shelf);
+            show_shelf_info(pad_posx, WIN_WIDTH-PAD_BOXED_WIDTH, &local_shelf);
+    }
+    }
 }
 
-static int loading_bookinfo(WINDOW *win, int shelfno)
+static int next_page_bookinfo(WINDOW *win, int shelfno)
 {
+    static int local_shelfno = NON_SENSE_INT; 
+    static int local_bookno = NON_SENSE_INT;
     book_entry_t local_book;
     int nbooks = 0, res;
 
-    if(!client_shelf_loading_book(shelfno, 0)){
+    //书架变更
+    if(local_shelfno != shelfno){
+        local_shelfno = shelfno;
+        local_bookno = NON_SENSE_INT;
+    }
+
+    res = client_shelf_loading_book(shelfno, local_bookno);
+    if(res == 0){
         error_line("从服务器获取书籍发生异常");
+        return(-1);
+    }else if(res == -1){//未获取到数据
         return(0);
     }
 
@@ -284,7 +338,26 @@ static int loading_bookinfo(WINDOW *win, int shelfno)
         }
         mvwprintw(win, nbooks++, 0, "《%s》", local_book.name);
     }
-    clidb_book_search_reset();
+    //记录当前获取到的最大图书编号
+    local_bookno = local_book.code[2];
+
+    return(nbooks);
+}
+
+static int last_page_bookinfo(WINDOW *win, int shelfno)
+{
+    book_entry_t local_book;
+    int nbooks = 0, res;
+
+    clidb_book_search_step(PAD_HIGHT);
+    clidb_book_backward_mode();
+    while((res = clidb_book_get(&local_book)) != -1){
+        if(!res){
+            error_line(local_book.name);
+            return 0;
+        }
+        mvwprintw(win, nbooks++, 0, "《%s》", local_book.name);
+    }
 
     return(nbooks);
 }
@@ -335,6 +408,45 @@ static void scroll_pad(slider_t *sld, int logic_row, int *nline)
     }
     if(sld->current_row > sld->max_row && sld->last_row < sld->current_row)*nline += 1;
     if(sld->current_row >= sld->max_row && sld->last_row > sld->max_row)*nline -= 1;
+}
+
+static void show_book_info(int startx, int starty, book_entry_t *local_book)
+{ 
+    int unique[8];
+    int i=0;
+
+    //计算图书唯一编码
+    unique[0] = HEX_ASC[local_book->code[0]%16];
+    unique[1] = HEX_ASC[local_book->code[1]/16];
+    unique[2] = HEX_ASC[local_book->code[1]%16];
+    unique[3] = HEX_ASC[(local_book->code[2] >> 12)&0x0F];
+    unique[4] = HEX_ASC[(local_book->code[2] >> 8)&0x0F];
+    unique[5] = HEX_ASC[(local_book->code[2] >> 4)&0x0F];
+    unique[6] = HEX_ASC[local_book->code[2]&0x0F];
+    unique[7] = '\0';
+
+    //显示图书信息
+    clear_line(startx+i, starty);
+    mvwprintw(mainwin, startx+i++, starty, "编号: %d", unique);
+    clear_line(startx+i, starty);
+    mvwprintw(mainwin, startx+i++, starty, "作者: %s", local_book->author);
+    clear_line(startx+i, starty);
+    mvwprintw(mainwin, startx+i++, starty, "标签: %s", local_book->label);
+    clear_line(startx+i, starty);
+    mvwprintw(mainwin, startx+i++, starty, "位置: %d层%d排", local_book->code[1]/10, local_book->code[1]%10);
+    clear_line(startx+i, starty);
+    mvwprintw(mainwin, startx+i++, starty, "打造时间: %s", local_book->encoding_time);
+    if(local_book->on_reading){
+        clear_line(startx+i, starty);
+        mvwprintw(mainwin, startx+i++, starty, "在读中");
+    }
+    if(local_book->borrowed){
+        clear_line(startx+i, starty);
+        mvwprintw(mainwin, startx+i++, starty, "外借中");
+    }
+
+    touchwin(stdscr);
+    refresh();
 }
 
 static void show_shelf_info(int startx, int starty, shelf_entry_t *local_shelf)

@@ -244,52 +244,42 @@ int client_shelf_loading_book(int shelfno, int bookno)
     msg.stuff.book.borrowed = 0;
     msg.stuff.book.on_reading = 0;
 
-    find_from_server(msg);
+    return(find_from_server(msg));
 }
 
 static int find_from_server(message_cs_t msg)
 {
     int res;
-    int tempPos;
-    message_cs_t msg_copy;
-
-    msg_copy = msg;
+    int nfinds = 0;
 
     res = socket_client_send_request(&msg);
-    if(!res){
-#if DEBUG_TRACE
-        fprintf(stderr, "client send request error.\n");
-#endif
-        return(0);
-    }
+    if(!res)return(0);
 
     do{
         res = socket_client_get_response(&msg);
-        if(!res){
-#if DEBUG_TRACE
-            fprintf(stderr, "client get response error.\n");
-#endif
-            return(0);
-        }
+        if(!res)return(0);
+
         //检查结果
         if(msg.response == r_failed){
-            break;
+            return(0);
         }else if(msg.response == r_find_end){
 #if DEBUG_TRACE
             printf("Client find no more.\n");
 #endif
-            break;
+            if(nfinds > 0)return(-1);//没有获取到任何数据
+            return(1);
         }else if(msg.response == r_find_end_more){
 #if DEBUG_TRACE
-            printf("new find request send!\n");
+            printf("client find more.\n");
 #endif
-            break;
+            return(1);
         }else{
             clidb_book_insert(&msg.stuff.book);
+            nfinds++;
         }
     }while(1);
 
-    return(1);
+    return(0);
 }
 
 

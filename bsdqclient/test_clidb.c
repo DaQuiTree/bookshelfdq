@@ -5,84 +5,138 @@
 #include "clidb.h"
 #include "clisrv.h"
 
-static void showresult(shelf_entry_t *user_shelf);
+static void showresult(book_entry_t *user_book);
+static void getbook(book_entry_t *user_book, char *book_name);
 
 int main()
 {
-    shelf_entry_t shelf, newshelf;
-    int i;
+    book_entry_t book, newbook;
+    int result, i = 1;
 
     if(!clidb_init("daqui")){
         exit(EXIT_FAILURE);
     }
     printf("init ok!\n");
 
-    shelf.code = 13;
-    strcpy(shelf.name, "5141书架");
-    shelf.nfloors = 2;
-    shelf.ndepth[0] = 3;
-    shelf.ndepth[1] = 3;
-    strcpy(shelf.building_time, "20190208");
-    if(!clidb_shelf_insert(&shelf)){
-        exit(EXIT_FAILURE);
+    getbook(&book, "三国演义");
+    if(clidb_book_insert(&book)){
+        printf("%d insert ok\n", i++);
     }
-    printf("1 insert ok!\n");
-
-    shelf.code = 15;
-    strcpy(shelf.name, "8322书架");
-    shelf.nfloors = 3;
-    shelf.ndepth[0] = 3;
-    shelf.ndepth[1] = 3;
-    shelf.ndepth[2] = 2;
-    strcpy(shelf.building_time, "20190208");
-    if(!clidb_shelf_insert(&shelf)){
-        exit(EXIT_FAILURE);
+    getbook(&book, "三国");
+    if(clidb_book_insert(&book)){
+        printf("%d insert ok\n", i++);
     }
-    printf("7 insert ok!\n");
+    getbook(&book, "三毛流浪记");
+    if(clidb_book_insert(&book)){
+        printf("%d insert ok\n", i++);
+    }
+    getbook(&book, "三个和尚");
+    if(clidb_book_insert(&book)){
+        printf("%d insert ok\n", i++);
+    }
 
-    /*shelf.code = 15;*/
-    /*strcpy(shelf.name, "3536书架");*/
-    /*shelf.nfloors = 3;*/
-    /*shelf.ndepth[0] = 3;*/
-    /*shelf.ndepth[1] = 3;*/
-    /*shelf.ndepth[2] = 2;*/
-    /*strcpy(shelf.building_time, "20190208");*/
-    /*if(!clidb_shelf_insert(&shelf)){*/
-        /*exit(EXIT_FAILURE);*/
-    /*}*/
-    /*printf("15 insert ok!\n");*/
+    getbook(&book, "拉开建立空间");
+    if(clidb_book_insert(&book)){
+        printf("%d insert ok\n", i++);
+    }
 
-    /*if(clidb_shelf_delete(14)){*/
-        /*printf("14 delete ok!\n");*/
-    /*}*/
+    getbook(&book, "离开立空");
+    if(clidb_book_insert(&book)){
+        printf("%d insert ok\n", i++);
+    }
+    getbook(&book, "你们，你");
+    if(clidb_book_insert(&book)){
+        printf("%d insert ok\n", i++);
+    }
+    getbook(&book, "了科技哦");
+    if(clidb_book_insert(&book)){
+        printf("%d insert ok\n", i++);
+    }
+    getbook(&book, "哦iu");
+    if(clidb_book_insert(&book)){
+        printf("%d insert ok\n", i++);
+    }
+    getbook(&book, "三国dawjjj演义");
+    if(clidb_book_insert(&book)){
+        printf("%d insert ok\n", i++);
+    }
+    getbook(&book, "l;kjiojh");
+    if(clidb_book_insert(&book)){
+        printf("%d insert ok\n", i++);
+    }
+    getbook(&book, "我耳机");
+    if(clidb_book_insert(&book)){
+        printf("%d insert ok\n", i++);
+    }
 
-    /*if(clidb_shelf_delete(1)){*/
-        /*printf("1 delete ok!\n");*/
-    /*}*/
+    getbook(&book, "去玩儿");
+    if(clidb_book_insert(&book)){
+        printf("%d insert ok\n", i++);
+    }
+    getbook(&book, "阿斯顿服务额");
+    if(clidb_book_insert(&book)){
+        printf("%d insert ok\n", i++);
+    }
 
-    for(i = 1; i <= MAX_SHELF_NUM; i++){
-        if(clidb_shelf_exists(i)){
-            if(clidb_shelf_get(i, &newshelf)){
-                printf("\n");
-                showresult(&newshelf);
+    for(i = 0; i < 15; i++){
+        result = clidb_book_get(&newbook);
+        if(result == 1){
+            showresult(&newbook);
+        }else if(result == -1){
+            printf("forward no more.\n");
+        }else{
+            printf("error\n");
+            exit(1);
+        }
+    }
+
+    clidb_book_search_step(4);
+    while(clidb_book_backward_mode()){
+        for(i = 0; i < 4; i++){
+            result = clidb_book_get(&newbook);
+            if(result == 1){
+                showresult(&newbook);
+            }else if(result == -1){
+                printf("backward no more.\n");
+            }else{
+                printf("error\n");
+                exit(1);
             }
         }
     }
 
+    int pos[4] = {0, 3, 7, 9};
+    for(i = 0; i < 4; i++){
+        result = clidb_book_peek(&newbook, pos[i]);
+        if(result == 1){
+            showresult(&newbook);
+        }else{
+            printf("error\n");
+            exit(1);
+        }
+    }
 }
 
-static void showresult(shelf_entry_t *user_shelf)
+static void getbook(book_entry_t *user_book, char *book_name)
 {
-    int i = 0;
+    static int num = 1;
 
-    printf("%d\n", user_shelf->code);
-    printf("%s\n", user_shelf->name);
-    printf("%d\n", user_shelf->nfloors);
+    user_book->code[0] = 1;
+    user_book->code[1] = 0x21;
+    user_book->code[2] = num++;
+    strcpy(user_book->name, book_name);
+    strcpy(user_book->author, "匿名");
+    strcpy(user_book->label, "无 无无 无无无 无无无无");
+    user_book->borrowed = 0;
+    user_book->on_reading = 0;
+    strcpy(user_book->encoding_time, "20190208下午");
+}
 
-    for(i = 0; i < user_shelf->nfloors; i++)
-    {
-        printf("%d ", user_shelf->ndepth[i]);
-    }
-    printf("\n");
-    printf("%s\n", user_shelf->building_time);
+static void showresult(book_entry_t *user_book)
+{
+    printf("%d\n", user_book->code[2]);
+    printf("%s\n", user_book->name);
+    printf("%s\n", user_book->author);
+    printf("%s\n", user_book->label);
+    printf("%s\n", user_book->encoding_time);
 }

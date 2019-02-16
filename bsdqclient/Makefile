@@ -1,4 +1,4 @@
-all: testshell #test_clidb bsdq_server bsdq_client srvdbmain
+all: test_clidb #testshell test_clidb bsdq_server bsdq_client srvdbmain
 
 CC = gcc
 CFLAGS = -Wall -pedantic
@@ -29,7 +29,6 @@ test_clidb: test_clidb.o clidb.o
 	$(CC) $(CFLAGS) $(DFLAGS) -o test_clidb -I$(DBM_INC_PATH) $^ $(DBM_LIB_FILE)
 testshell: testshell.o clishell.o clidb.o ncgui.o ../bsdqserver/socketcom.o ../bsdqserver/srvdb.o
 	$(CC) $(CFLAGS) $(DFLAGS) -o testshell -I$(DBM_INC_PATH) -I$(MYSQL_INC_PATH) $^ $(MYSQL_LIB_FILE) $(DBM_LIB_FILE) $(NC_LIB_FILE) -L$(MYSQL_LIB_PATH) 
-
 .c.o:
 	$(CC) $(CFLAGS) $(DFLAGS) -c $<
 

@@ -21,6 +21,7 @@ int clidb_book_insert(book_entry_t *user_book);
 void clidb_book_search_reset(void);//重置查找位置
 void clidb_book_search_step(int step);//设置查找的数量
 int clidb_book_backward_mode(void);//设置倒序查找模式
-int clidb_book_get(book_entry_t *user_book);
+int clidb_book_get(book_entry_t *user_book);//获取图书信息并保存当前位置
+int clidb_book_peek(book_entry_t *user_book, int peek_pos);//仅获取图书固定位置图书信息
 
 #endif

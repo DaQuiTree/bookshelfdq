@@ -409,3 +409,33 @@ int clidb_book_get(book_entry_t *user_book)
     return 0;
 }
 
+int clidb_book_peek(book_entry_t *user_book, int peek_pos)
+{
+    char key_to_get[16];
+    datum local_key_datum;
+    datum local_data_datum;
+
+    if(!book_dbm_ptr){
+#if DEBUG_TRACE
+        fprintf(stderr, "clidb_book_insert() error: book dbm has not been initialized.\n");
+#endif
+        return(0);
+    }
+
+    memset(key_to_get, '\0', sizeof(key_to_get));
+    sprintf(key_to_get, "book_%d", peek_pos);
+    local_key_datum.dptr = (void *)key_to_get;
+    local_key_datum.dsize = sizeof(key_to_get);
+
+    local_data_datum = dbm_fetch(book_dbm_ptr, local_key_datum); 
+    if(local_data_datum.dptr){
+        memcpy((void *)user_book, local_data_datum.dptr, local_data_datum.dsize);
+        return(1);
+    }
+
+#if DEBUG_TRACE
+    fprintf(stderr, "clidb_book_forward_get(): did not get book info.\n");
+#endif
+
+    return 0;
+}
