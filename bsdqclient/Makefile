@@ -1,10 +1,10 @@
-all: test_clidb #testshell test_clidb bsdq_server bsdq_client srvdbmain
+all: testshell #test_clidb bsdq_server bsdq_client srvdbmain
 
 CC = gcc
 CFLAGS = -Wall -pedantic
 
 #Debug Flags
-DFLAGS = -g -DDEBUG_TRACE=1
+#DFLAGS = -g -DDEBUG_TRACE=1
 
 #MYSQL
 MYSQL_INC_PATH = /usr/include/mysql
@@ -30,9 +30,6 @@ test_clidb: test_clidb.o clidb.o
 testshell: testshell.o clishell.o clidb.o ncgui.o ../bsdqserver/socketcom.o ../bsdqserver/srvdb.o
 	$(CC) $(CFLAGS) $(DFLAGS) -o testshell -I$(DBM_INC_PATH) -I$(MYSQL_INC_PATH) $^ $(MYSQL_LIB_FILE) $(DBM_LIB_FILE) $(NC_LIB_FILE) -L$(MYSQL_LIB_PATH) 
 .c.o:
-	$(CC) $(CFLAGS) $(DFLAGS) -c $<
-
-srvdb.o: srvdb.c clisrv.h srvdb.h 
 	$(CC) $(CFLAGS) $(DFLAGS) -I$(MYSQL_INC_PATH) -c $<
 
 #socketcom.o: socketcom.c socketcom.h clisrv.h srvdb.h 

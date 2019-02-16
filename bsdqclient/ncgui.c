@@ -57,22 +57,24 @@ shelf_count_t gui_sc;
 WINDOW *mainwin;
 
 //通用函数
+static void current_page(ui_page_type_e ptype); 
 static int get_choice(ui_page_type_e ptype, slider_t *sld, int logic_row_max);
 static void scroll_pad(slider_t *sld, int logic_row, int *nline);
 static void move_slider(slider_t *sld, int unset);
 static void error_line(char* error);
-static void clear_line(int startx, int starty);
+static void clear_line(int startx, int starty, int nlines);
 
 //浏览书架相关
 static void show_shelf_info(int posx, int posy, shelf_entry_t *local_shelf);
 static void draw_lt_option_box(WINDOW **win, slider_t *sld);
 static void destroy_lt_option_box(WINDOW **win);
 
-//浏览数家书籍相关
+//浏览书籍相关
 static void display_bookinfo_page(int shelfno);
 static int next_page_bookinfo(WINDOW *win, int shelfno);
 static int last_page_bookinfo(WINDOW *win, int shelfno);
 static void show_book_info(int startx, int starty, book_entry_t *local_book);
+static void split_labels(char *label, char rev[][37]);
 
 int client_start_gui(char* hostname, char *user)
 {
@@ -254,6 +256,10 @@ void ncgui_display_lookthrough_page(void)
                             break;
                         default: break;
                     }
+                    move_slider(&lt_slider, 0);
+                    clidb_shelf_get(clidb_shelf_realno(first_line+lt_slider.current_row+1), &local_shelf);
+                    show_shelf_info(pad_posx, WIN_WIDTH-PAD_BOXED_WIDTH, &local_shelf);
+                    op_key = LOCAL_KEY_ESC;
                 }
             }
             op_key = LOCAL_KEY_NON_SENSE;
@@ -268,14 +274,16 @@ void ncgui_display_lookthrough_page(void)
 static void display_bookinfo_page(int shelfno)
 { 
     WINDOW *padwin;
-    int pad_posx = GREET_ROW+2, pad_posy = 8, fisrt_line = 0;
+    int pad_posx = GREET_ROW+2, pad_posy = 8, first_line = 0;
     int nbooks, logic_rows;
     book_entry_t local_book;
     slider_t bi_slider;
     int book_page_cnt = 0;
-    int bi_key;
+    int bi_key = 0;
 
     padwin = newpad(PAD_HIGHT, PAD_WIDTH);
+
+    clear_line(pad_posx, WIN_WIDTH-PAD_BOXED_WIDTH, PAD_BOXED_HIGHT);
 
     //初始化书籍信息
     if((nbooks = next_page_bookinfo(padwin, shelfno)) == -1)return;
@@ -300,13 +308,17 @@ static void display_bookinfo_page(int shelfno)
     //获取用户输入
     while(bi_key != LOCAL_KEY_ESC){
         prefresh(padwin, first_line, 0, pad_posx, pad_posy, pad_posx+PAD_BOXED_HIGHT-1, PAD_BOXED_WIDTH);
-        lt_key = get_choice(page_lookthrough_e, &lt_slider, logic_rows);
-        if(lt_key != LOCAL_KEY_ESC){
+        bi_key = get_choice(page_lookthrough_e, &bi_slider, logic_rows);
+        if(bi_key != LOCAL_KEY_ESC){
             //获取书架信息并显示
-            clidb_shelf_get(clidb_shelf_realno(lt_slider.current_row+1), &local_shelf);
-            show_shelf_info(pad_posx, WIN_WIDTH-PAD_BOXED_WIDTH, &local_shelf);
+            clidb_book_peek(&local_book, book_page_cnt*PAD_HIGHT+bi_slider.current_row);
+            show_book_info(pad_posx, WIN_WIDTH-PAD_BOXED_WIDTH, &local_book);
+            scroll_pad(&bi_slider, logic_rows, &first_line);
+        }
     }
-    }
+
+    clear_line(pad_posx, WIN_WIDTH-PAD_BOXED_WIDTH, PAD_BOXED_HIGHT);
+    delwin(padwin);
 }
 
 static int next_page_bookinfo(WINDOW *win, int shelfno)
@@ -338,6 +350,10 @@ static int next_page_bookinfo(WINDOW *win, int shelfno)
         }
         mvwprintw(win, nbooks++, 0, "《%s》", local_book.name);
     }
+
+    touchwin(stdscr);
+    refresh();
+
     //记录当前获取到的最大图书编号
     local_bookno = local_book.code[2];
 
@@ -412,8 +428,12 @@ static void scroll_pad(slider_t *sld, int logic_row, int *nline)
 
 static void show_book_info(int startx, int starty, book_entry_t *local_book)
 { 
-    int unique[8];
-    int i=0;
+    char unique[8];
+    char slabel[MAX_LABEL_NUM/2][2*LABEL_NAME_LEN+1];
+    int i = 0, j = 0;
+
+    clear_line(startx, starty, PAD_BOXED_HIGHT);
+    memset(slabel, '\0', sizeof(slabel));
 
     //计算图书唯一编码
     unique[0] = HEX_ASC[local_book->code[0]%16];
@@ -426,51 +446,76 @@ static void show_book_info(int startx, int starty, book_entry_t *local_book)
     unique[7] = '\0';
 
     //显示图书信息
-    clear_line(startx+i, starty);
-    mvwprintw(mainwin, startx+i++, starty, "编号: %d", unique);
-    clear_line(startx+i, starty);
+    mvwprintw(mainwin, startx+i++, starty, "编号: %s", unique);
     mvwprintw(mainwin, startx+i++, starty, "作者: %s", local_book->author);
-    clear_line(startx+i, starty);
-    mvwprintw(mainwin, startx+i++, starty, "标签: %s", local_book->label);
-    clear_line(startx+i, starty);
-    mvwprintw(mainwin, startx+i++, starty, "位置: %d层%d排", local_book->code[1]/10, local_book->code[1]%10);
-    clear_line(startx+i, starty);
-    mvwprintw(mainwin, startx+i++, starty, "打造时间: %s", local_book->encoding_time);
-    if(local_book->on_reading){
-        clear_line(startx+i, starty);
-        mvwprintw(mainwin, startx+i++, starty, "在读中");
+    mvwprintw(mainwin, startx+i++, starty, "位置: %d层%d排", local_book->code[1]/16, local_book->code[1]%16);
+    mvwprintw(mainwin, startx+i++, starty, "上架时间: %s", local_book->encoding_time);
+    if(local_book->on_reading == '1'){
+        mvwprintw(mainwin, startx+i++, starty, "✍ ");
     }
-    if(local_book->borrowed){
-        clear_line(startx+i, starty);
-        mvwprintw(mainwin, startx+i++, starty, "外借中");
+    if(local_book->borrowed == '1'){
+        mvwprintw(mainwin, startx+i++, starty, "⛹ ");
+    }
+    i++;
+    split_labels(local_book->label, slabel);
+    while(slabel[j][0]){
+        mvwprintw(mainwin, startx+i++, starty, "%s", slabel[j]);
+        j++;
     }
 
     touchwin(stdscr);
     refresh();
 }
 
+static void split_labels(char *label, char rev[][37])
+{
+    int last_offset = -1, offset = 0;
+    int index = 0;
+    char ch;
+
+    while((ch = label[offset]) != '\0'){
+        if(ch == ','){
+            index++;
+            label[offset] = ' ';
+            if(index%2 == 0){
+                strncpy(rev[index/2-1], label+last_offset+1, offset-last_offset);
+                rev[index/2-1][offset-last_offset] = 0;
+                last_offset = offset;
+            }
+        }
+        offset++;
+    }
+    strncpy(rev[index/2], label+last_offset+1, offset-last_offset);
+} 
+
 static void show_shelf_info(int startx, int starty, shelf_entry_t *local_shelf)
 { 
-    clear_line(startx, starty);
+    clear_line(startx, starty, PAD_BOXED_HIGHT);
     mvwprintw(mainwin, startx, starty, "编号: %d", local_shelf->code);
-    clear_line(startx+1, starty);
     mvwprintw(mainwin, startx+1, starty, "层数: %d", local_shelf->nfloors);
-    clear_line(startx+2, starty);
     mvwprintw(mainwin, startx+2, starty, "打造时间: %s", local_shelf->building_time);
 
     touchwin(stdscr);
     refresh();
 }
 
-static void clear_line(int startx, int starty)
+static void clear_line(int startx, int starty, int nlines)
 {
     char blank_line[WIN_WIDTH]={0};
 
     memset(blank_line, ' ', WIN_WIDTH-starty-1);
-    mvwprintw(mainwin, startx, starty, blank_line);
+    while(nlines--)
+        mvwprintw(mainwin, startx++, starty, blank_line);
 
     touchwin(stdscr);
     refresh();
+}
+
+static void current_page(ui_page_type_e ptype)
+{
+    static ui_page_type_e global_page = page_mainmenu_e;
+
+    if(ptype > 1 && ptype != global_page)clidb_book_reset();
 }
 
 static int get_choice(ui_page_type_e ptype, slider_t *sld, int logic_row)

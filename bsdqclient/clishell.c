@@ -266,7 +266,7 @@ static int find_from_server(message_cs_t msg)
 #if DEBUG_TRACE
             printf("Client find no more.\n");
 #endif
-            if(nfinds > 0)return(-1);//没有获取到任何数据
+            if(nfinds == 0)return(-1);//没有获取到任何数据
             return(1);
         }else if(msg.response == r_find_end_more){
 #if DEBUG_TRACE

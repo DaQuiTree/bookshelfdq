@@ -1,10 +1,10 @@
-all: bsdq_server bsdq_client#srvdbmain
+all: bsdq_server #bsdq_client srvdbmain
 
 CC = gcc
 CFLAGS = -Wall -pedantic
 
 #Debug Flags
-DFLAGS = -g -DDEBUG_TRACE=1
+#DFLAGS = -g -DDEBUG_TRACE=1
 
 #MYSQL
 MYSQL_INC_PATH = /usr/include/mysql

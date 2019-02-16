@@ -83,7 +83,7 @@ typedef struct{
 
 
 //检索相关
-#define DEFAULT_FINDS (10)
+#define DEFAULT_FINDS (30)
 
 #define NON_SENSE_INT (0)
 #define BREAK_LIMIT_INT (MAX_BOOK_NUM + 1)

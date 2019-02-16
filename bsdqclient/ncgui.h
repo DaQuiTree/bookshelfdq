@@ -11,9 +11,10 @@ typedef enum{
 }ui_lookthrough_option_e;
 
 typedef enum{
+    page_nonsense_e,
     page_mainmenu_e,
     page_lookthrough_e,
-    page_nonsense_e
+    page_bookinfo_e
 }ui_page_type_e;
 
 typedef enum{
