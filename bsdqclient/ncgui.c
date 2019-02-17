@@ -66,13 +66,12 @@ static void clear_line(int startx, int starty, int nlines, int line_width);
 
 //浏览书架相关
 static void show_shelf_info(int posx, int posy, shelf_entry_t *local_shelf);
-static void draw_lt_option_box(WINDOW **win, slider_t *sld);
+static void draw_lt_option_box(WINDOW **win, slider_t *sld, char *option[]);
 static void destroy_lt_option_box(WINDOW **win);
 
 //浏览书籍相关
 static int display_bookinfo_page(int shelfno);
 static int next_page_bookinfo(WINDOW *win, int *shelfno, int *bookno);
-static int last_page_bookinfo(WINDOW *win, int shelfno);
 static void show_book_info(int startx, int starty, book_entry_t *local_book);
 static void split_labels(char *label, char rev[][37]);
 
@@ -324,26 +323,29 @@ static int display_bookinfo_page(int shelfno)
         prefresh(padwin, first_line, 0, pad_posx, pad_posy, pad_posx+PAD_BOXED_HIGHT-1, PAD_BOXED_WIDTH);
         bi_key = get_choice(page_lookthrough_e, &bi_slider, logic_rows);
         if(bi_key != LOCAL_KEY_ESC){
-            //获取书架信息并显示
+            //获取图书信息并显示
             clidb_book_peek(&local_book, book_page_cnt*PAD_HIGHT+bi_slider.current_row);
             show_book_info(pad_posx, WIN_WIDTH-PAD_BOXED_WIDTH, &local_book);
             scroll_pad(&bi_slider, logic_rows, &first_line);
-            if(bi_key == KEY_RIGHT){
-                next_page_bookinfo(padwin, &local_shelfno, &local_bookno);
-                book_page_cnt++;
-                rt_key = KEY_ENTER;
-                break;
-            }else if(bi_key == KEY_LEFT){
+            if(bi_key == KEY_RIGHT){//向后翻页
+                if(next_page_bookinfo(padwin, &local_shelfno, &local_bookno) > 0){
+                    book_page_cnt++;
+                    rt_key = KEY_ENTER;
+                    break;
+                }
+            }else if(bi_key == KEY_LEFT){//向前翻页
                 clidb_book_backward_mode();
                 --book_page_cnt < 0 ? book_page_cnt = 0: 0;
                 rt_key = KEY_ENTER;
                 break;
+            }else if(bi_key == KEY_ENTER || bi_key == '\n'){//用户按下回车
+
             }
         }
     }
 
     //善后工作
-    if(!clidb_book_backward_mode())clidb_book_search_reset();
+    clidb_book_backward_mode();
     clear_line(pad_posx, WIN_WIDTH-PAD_BOXED_WIDTH, PAD_BOXED_HIGHT, PAD_BOXED_WIDTH);
     clear_line(pad_posx, pad_posy-3, PAD_BOXED_HIGHT, PAD_BOXED_WIDTH);
     delwin(padwin);
@@ -355,21 +357,19 @@ static int next_page_bookinfo(WINDOW *win, int *shelfno, int *bookno)
 {
     book_entry_t local_book;
     int nbooks = 0, res;
-    char str[8];
 
     //使用缓存内数据
     clidb_book_search_step(PAD_HIGHT);
     while((res = clidb_book_get(&local_book)) != -1){
         if(!res){
             error_line(local_book.name);
-            return 0;
+            touchwin(stdscr);
+            refresh();
+            return(-1);
         }
         mvwprintw(win, nbooks++, 0, "《%s》", local_book.name);
-        if(nbooks >= PAD_HIGHT)break;
     }
 
-    sprintf(str, "%d", nbooks);
-    error_line(str);
     if(nbooks > 0)return(nbooks);
 
     //从远端获取数据
@@ -385,13 +385,12 @@ static int next_page_bookinfo(WINDOW *win, int *shelfno, int *bookno)
     while((res = clidb_book_get(&local_book)) != -1){
         if(!res){
             error_line(local_book.name);
-            return 0;
+            touchwin(stdscr);
+            refresh();
+            return(-1);
         }
         mvwprintw(win, nbooks++, 0, "《%s》", local_book.name);
     }
-
-    touchwin(stdscr);
-    refresh();
 
     //记录当前获取到的最大图书编号
     *bookno = local_book.code[2];
@@ -399,29 +398,11 @@ static int next_page_bookinfo(WINDOW *win, int *shelfno, int *bookno)
     return(nbooks);
 }
 
-static int last_page_bookinfo(WINDOW *win, int shelfno)
-{
-    book_entry_t local_book;
-    int nbooks = 0, res;
-
-    clidb_book_search_step(PAD_HIGHT);
-    clidb_book_backward_mode();
-    while((res = clidb_book_get(&local_book)) != -1){
-        if(!res){
-            error_line(local_book.name);
-            return 0;
-        }
-        mvwprintw(win, nbooks++, 0, "《%s》", local_book.name);
-    }
-
-    return(nbooks);
-}
-
-static void draw_lt_option_box(WINDOW **win, slider_t *sld)
+static void draw_lt_option_box(WINDOW **win, slider_t *sld, char *option[])
 {
     int op_row = GREET_ROW+9;
     int op_column = WIN_WIDTH-PAD_BOXED_WIDTH;
-    char **option_ptr = lookthrough_option;
+    char **option_ptr = option;
     int i = 1;
 
     *win = subwin(mainwin, 5, 15, op_row, op_column);

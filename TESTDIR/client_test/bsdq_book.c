@@ -23,8 +23,8 @@ int main(void)
     }
     printf("client init success\n");
 
-    delete_message(&msg);
-    nextstep(&msg);
+    //delete_message(&msg);
+    //nextstep(&msg);
     count_message(&msg);
     nextstep(&msg);
     socket_client_close();

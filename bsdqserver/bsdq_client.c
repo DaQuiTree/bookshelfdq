@@ -7,6 +7,7 @@
 
 void insert_message(message_cs_t *msg);
 void delete_message(message_cs_t *msg);
+void update_message(message_cs_t *msg);
 void find_message(message_cs_t *msg);
 void count_message(message_cs_t *msg);
 void nextstep(message_cs_t *msg);
@@ -22,6 +23,8 @@ int main(void)
     }
     printf("client init success\n");
 
+    //delete_message(&msg);
+    //nextstep(&msg);
     count_message(&msg);
     nextstep(&msg);
     socket_client_close();
@@ -31,47 +34,57 @@ int main(void)
 void insert_message(message_cs_t *msg)
 {
     strcpy(msg->user, "daqui");
-    msg->request = req_build_shelf_e;
-    strcpy(msg->stuff.shelf.name, "5141小阳台书架");
-    msg->stuff.shelf.nfloors = 2;
-    msg->stuff.shelf.ndepth[0] = 1;
-    msg->stuff.shelf.ndepth[1] = 1;
-    strcpy(msg->stuff.shelf.building_time, "20190204下午");
+    msg->stuff.book.borrowed = 0;
+    msg->stuff.book.on_reading = 0;
+    msg->request = req_insert_book_e;
+    msg->stuff.book.code[0] = 3;
+    msg->stuff.book.code[1] = 0x31;
+    strcpy(msg->stuff.book.name, "撒哈啦的故事");
+    strcpy(msg->stuff.book.author, "三毛");
+    strcpy(msg->stuff.book.label, "流浪文学, 自由生活");
+    strcpy(msg->stuff.book.encoding_time, "20190204下午");
 }
 
 void delete_message(message_cs_t *msg)
 {
     strcpy(msg->user, "daqui");
-    msg->request = req_remove_shelf_e;
-    msg->stuff.shelf.code = 13;
+    msg->request = req_delete_book_e;
+    msg->stuff.book.code[2] = 8;
 }
 
-/*void update_message(message_cs_t *msg)*/
-/*{*/
-    /*strcpy(msg->user, "daqui");*/
-    /*msg->request = req_update_shelf_e;*/
-    /*msg->stuff.shelf.code = 12;*/
-    /*strcpy(msg->stuff.shelf.name, "徐鹏书架");*/
-    /*msg->stuff.shelf.nfloors = 4;*/
-    /*msg->stuff.shelf.ndepth[0] = 2;*/
-    /*msg->stuff.shelf.ndepth[1] = 2;*/
-    /*msg->stuff.shelf.ndepth[2] = 1;*/
-    /*msg->stuff.shelf.ndepth[3] = 1;*/
-    /*strcpy(msg->stuff.shelf.building_time, "20190204下午");*/
-/*}*/
+void update_message(message_cs_t *msg)
+{
+    strcpy(msg->user, "daqui");
+    msg->request = req_update_book_e;
+    msg->stuff.book.code[0] = 3;
+    msg->stuff.book.code[1] = 0x21;
+    msg->stuff.book.code[2] = 25;
+    strcpy(msg->stuff.book.name, "三毛流浪记");
+    strcpy(msg->stuff.book.author, "张乐平");
+    strcpy(msg->stuff.book.label, "国产漫画,穷苦生后,儿童,希望");
+    msg->stuff.book.borrowed = 1;
+    strcpy(msg->stuff.book.encoding_time, "20190203早");
+}
 
 void find_message(message_cs_t *msg)
 {
     strcpy(msg->user, "daqui");
-    msg->request = req_find_shelf_e;
-    msg->stuff.shelf.code = NON_SENSE_INT;
+    msg->request = req_find_book_e;
+    msg->stuff.book.code[0] = NON_SENSE_INT;
+    msg->stuff.book.code[1] = NON_SENSE_INT;
+    msg->stuff.book.code[2] = NON_SENSE_INT;
+    strcpy(msg->stuff.book.name, "-");
+    strcpy(msg->stuff.book.author, "-");
+    strcpy(msg->stuff.book.label, "-");
+    msg->stuff.book.borrowed = 0;
+    msg->stuff.book.on_reading = 0;
 }
 
 void nextstep(message_cs_t *msg)
 {
     int res;
-    int tempPos, i;
-    shelf_count_t sc;
+    int tempPos;
+    book_count_t bc;
 
     res = socket_client_send_request(msg);
     if(!res){
@@ -86,15 +99,15 @@ void nextstep(message_cs_t *msg)
             fprintf(stderr, "client get response error.\n");
             exit(EXIT_FAILURE);
         }
-        if(msg->request == req_find_shelf_e){
+        if(msg->request == req_find_book_e){
             if(msg->response == r_failed)break;
             if(msg->response == r_find_end){
                 printf("Client find no more.\n");
                 break;
             }else if(msg->response == r_find_end_more){
-                tempPos = msg->stuff.shelf.code;
+                tempPos = msg->stuff.book.code[2];
                 find_message(msg);
-                msg->stuff.shelf.code = tempPos;
+                msg->stuff.book.code[2] = tempPos;
                 res = socket_client_send_request(msg);
                 if(!res){
                     fprintf(stderr, "client send request error.\n");
@@ -102,16 +115,13 @@ void nextstep(message_cs_t *msg)
                 }
                 printf("new find request send!\n");
             }else{
-                printf("%d %s %d %s | ", msg->stuff.shelf.code, msg->stuff.shelf.name, msg->stuff.shelf.nfloors, msg->stuff.shelf.building_time);
-                for(i = 0; i < msg->stuff.shelf.nfloors; i++){
-                    printf("%d ", msg->stuff.shelf.ndepth[i]);
-                }
-                printf("\n");
+                printf("%d %s %s %s\n", msg->stuff.book.code[2], msg->stuff.book.name, msg->stuff.book.author, msg->stuff.book.label);
             }
         }else{
-            if(msg->request == req_count_shelf_e){
-                sc = *(shelf_count_t *)&msg->extra_info;
-                printf("all: %d\n", sc.shelves_all);
+            if(msg->request == req_count_book_e){
+                bc = *(book_count_t *)&msg->extra_info;
+                printf("all: %d, borrowed: %d, on_reading: %d, unsorted: %d\n",\
+                        bc.books_all, bc.books_borrowed, bc.books_on_reading, bc.books_unsorted);
             }
             break;
         }
@@ -129,5 +139,7 @@ void nextstep(message_cs_t *msg)
 void count_message(message_cs_t *msg)
 {
     strcpy(msg->user, "daqui");
-    msg->request = req_count_shelf_e;
+    msg->stuff.book.code[0] = NON_SENSE_INT;
+    msg->stuff.book.code[1] = NON_SENSE_INT;
+    msg->request = req_count_book_e;
 }

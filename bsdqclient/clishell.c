@@ -12,6 +12,10 @@ char login_user[USER_NAME_LEN+1];
 
 static int find_from_server(message_cs_t msg);
 
+//
+//封装client端初始化操作
+//
+
 int client_initialize(char* host, char* user)
 {
     if (!clidb_init(user)){
@@ -228,6 +232,9 @@ int client_books_info_sync(book_count_t *bc)
     return(0);
 }
 
+//
+//封装client端的socket请求
+//
 
 int client_shelf_loading_book(int shelfno, int bookno)
 {
@@ -243,6 +250,31 @@ int client_shelf_loading_book(int shelfno, int bookno)
     strcpy(msg.stuff.book.label, "-");
     msg.stuff.book.borrowed = 0;
     msg.stuff.book.on_reading = 0;
+
+    return(find_from_server(msg));
+}
+
+
+int client_shelf_delete_book(int shelfno, int bookno)
+{
+    message_cs_t msg;
+
+    strcpy(msg.user, login_user);
+    msg.request = req_delete_book_e;
+    msg.stuff.book.code[0] = NON_SENSE_INT;
+    msg.stuff.book.code[1] = NON_SENSE_INT;
+    msg.stuff.book.code[2] = bookno;
+
+    return(find_from_server(msg));
+}
+
+int client_shelf_tagging_book(int shelfno, book_entry_t *bookno)
+{
+    message_cs_t msg;
+
+    strcpy(msg.user, login_user);
+    msg.request = req_update_book_e;
+    memcpy(&msg.stuff.book, bookno, sizeof(book_entry_t));
 
     return(find_from_server(msg));
 }
@@ -274,12 +306,14 @@ static int find_from_server(message_cs_t msg)
 #endif
             return(1);
         }else{
-            clidb_book_insert(&msg.stuff.book);
-            nfinds++;
+            if(msg.request == req_find_book_e){//搜索命令特殊处理
+                clidb_book_insert(&msg.stuff.book);
+                nfinds++;
+            }else{
+                return(1);//执行成功
+            }   
         }
     }while(1);
 
     return(0);
 }
-
-

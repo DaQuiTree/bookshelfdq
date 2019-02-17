@@ -39,6 +39,7 @@ static int shelf_record[MAX_SHELF_NUM] = {0};
 static int book_dbm_pos = 0;
 static int book_search_pos = 0;
 static int book_search_step = 10;
+static int book_search_cnt = 0;
 
 static int shelf_record_save(void);
 static int shelf_record_obtain(void);
@@ -365,16 +366,16 @@ void clidb_book_search_reset(void)
 void clidb_book_search_step(int step)
 {
     book_search_step = step;
+    book_search_cnt = 0;
 }
 
-int clidb_book_backward_mode(void)
+void clidb_book_backward_mode(void)
 {
-    int temp_pos = 0;
+    int factor = 0;
 
-    temp_pos = (book_search_pos-1)/book_search_step*book_search_step - book_search_step;
-    if(temp_pos < 0)return(0); 
-    book_search_pos = temp_pos;
-    return(1);
+    factor = book_search_pos/book_search_step;
+    if(book_search_pos > 0 && book_search_pos%book_search_step == 0)factor--;
+    book_search_pos = factor*book_search_step;
 }   
 
 int clidb_book_get(book_entry_t *user_book)
@@ -391,6 +392,7 @@ int clidb_book_get(book_entry_t *user_book)
     }
 
     if(book_search_pos > book_dbm_pos-1)return(-1);
+    if(++book_search_cnt > book_search_step)return(-1);
     memset(key_to_get, '\0', sizeof(key_to_get));
     sprintf(key_to_get, "book_%d", book_search_pos++);
     local_key_datum.dptr = (void *)key_to_get;

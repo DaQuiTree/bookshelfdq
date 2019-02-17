@@ -1,4 +1,4 @@
-all: bsdq_server #bsdq_client srvdbmain
+all: bsdq_server #bsdq_client #srvdbmain
 
 CC = gcc
 CFLAGS = -Wall -pedantic

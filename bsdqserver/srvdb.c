@@ -398,6 +398,9 @@ int srvdb_book_find(message_cs_t *msg, int *num_rows)
         }
     }
 
+#if DEBUG_TRACE
+                fprintf(stderr, "%s.\n", is);
+#endif
     //检索
     int res;
     
@@ -485,6 +488,7 @@ int srvdb_book_count(message_cs_t *msg)
     srvdb_free_result();
 
     //外借图书数量
+    msg->stuff.book.on_reading = 0;
     msg->stuff.book.borrowed = FLAG_BORROWED;
     if(!srvdb_book_find(msg, &bc.books_borrowed)){
 #if DEBUG_TRACE
