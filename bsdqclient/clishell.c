@@ -10,7 +10,7 @@
 
 char login_user[USER_NAME_LEN+1];
 
-static int find_from_server(message_cs_t msg);
+static int find_from_server(message_cs_t *msg);
 
 //
 //封装client端初始化操作
@@ -251,11 +251,10 @@ int client_shelf_loading_book(int shelfno, int bookno)
     msg.stuff.book.borrowed = 0;
     msg.stuff.book.on_reading = 0;
 
-    return(find_from_server(msg));
+    return(find_from_server(&msg));
 }
 
-
-int client_shelf_delete_book(int shelfno, int bookno, int dbm_pos)
+int client_shelf_delete_book(int shelfno, book_entry_t *user_book, int dbm_pos)
 {
     message_cs_t msg;
     int res;
@@ -264,11 +263,13 @@ int client_shelf_delete_book(int shelfno, int bookno, int dbm_pos)
     msg.request = req_delete_book_e;
     msg.stuff.book.code[0] = NON_SENSE_INT;
     msg.stuff.book.code[1] = NON_SENSE_INT;
-    msg.stuff.book.code[2] = bookno;
+    msg.stuff.book.code[2] = user_book->code[2];
 
-    res = find_from_server(msg);
-    if(res == 1)
+    res = find_from_server(&msg);
+    if(res == 1){
         clidb_book_delete(dbm_pos);
+        user_book->encoding_time[0] = '\0';
+    }
 
     return(res);
 }
@@ -280,8 +281,8 @@ int client_shelf_tagging_book(int shelfno, book_entry_t *user_book, int dbm_pos)
 
     strcpy(msg.user, login_user);
     msg.request = req_update_book_e;
-    memcpy(&msg.stuff.book, user_book, sizeof(book_entry_t));
-    res = find_from_server(msg);
+    msg.stuff.book = *user_book;
+    res = find_from_server(&msg);
 
     if(res == 1)
         clidb_book_insert(user_book, dbm_pos);
@@ -289,35 +290,53 @@ int client_shelf_tagging_book(int shelfno, book_entry_t *user_book, int dbm_pos)
     return(res);
 }
 
-static int find_from_server(message_cs_t msg)
+int client_shelf_count_book(int shelfno, book_count_t *user_bc)
+{
+    message_cs_t msg;
+    int res = 0;
+
+    strcpy(msg.user, login_user);
+    msg.stuff.book.code[0] = shelfno;
+    msg.stuff.book.code[1] = NON_SENSE_INT;
+    msg.request = req_count_book_e;
+
+    res = find_from_server(&msg);
+
+    if(res == 1)
+        *user_bc = *(book_count_t *)&msg.extra_info;
+
+    return(res);
+}
+
+static int find_from_server(message_cs_t *msg)
 {
     int res;
     int nfinds = 0;
 
-    res = socket_client_send_request(&msg);
+    res = socket_client_send_request(msg);
     if(!res)return(0);
 
     do{
-        res = socket_client_get_response(&msg);
+        res = socket_client_get_response(msg);
         if(!res)return(0);
 
         //检查结果
-        if(msg.response == r_failed){
+        if(msg->response == r_failed){
             return(0);
-        }else if(msg.response == r_find_end){
+        }else if(msg->response == r_find_end){
 #if DEBUG_TRACE
             printf("Client find no more.\n");
 #endif
             if(nfinds == 0)return(-1);//没有获取到任何数据
             return(1);
-        }else if(msg.response == r_find_end_more){
+        }else if(msg->response == r_find_end_more){
 #if DEBUG_TRACE
             printf("client find more.\n");
 #endif
             return(1);
         }else{
-            if(msg.request == req_find_book_e){//搜索命令特殊处理
-                clidb_book_insert(&msg.stuff.book, -1);
+            if(msg->request == req_find_book_e){//搜索命令特殊处理
+                clidb_book_insert(&msg->stuff.book, -1);
                 nfinds++;
             }else{
                 return(1);//执行成功

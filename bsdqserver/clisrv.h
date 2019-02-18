@@ -2,7 +2,7 @@
 #define _CLISRV_H_
 
 //书相关定义
-#define MAX_BOOK_NUM (36)
+#define MAX_BOOK_NUM (10000)
 #define BOOK_NAME_LEN (64*3) //UTF-8中文占用3个字节 
 #define AUTHOR_NAME_LEN (32*3)
 #define MAX_LABEL_NUM (10)

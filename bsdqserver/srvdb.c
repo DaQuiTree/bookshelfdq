@@ -150,7 +150,7 @@ int srvdb_book_insert(message_cs_t *msg)
             if(temp_str != NULL){ //有废弃的可用编号
                 sscanf(temp_str, "%d", &bookno_used);
                 sprintf(is, "UPDATE %s SET cleaned=%d,shelfno=%d,floorno=%d,name='%s',author='%s',\
-                        label='%s',borrowed=%d,on_reading=%d,encoding_time='%s' WHERE bookno=%d",\
+                        label='%s',borrowed=%c,on_reading=%c,encoding_time='%s' WHERE bookno=%d",\
                         table_name, BOOK_AVL, shelfno_save, floorno_save, es_name, es_author, es_label,\
                         msg->stuff.book.borrowed, msg->stuff.book.on_reading, msg->stuff.book.encoding_time, bookno_used);
                 res = mysql_query(&my_connection, is);
@@ -262,9 +262,12 @@ int srvdb_book_update(message_cs_t *msg)
     mysql_escape_string(es_label, msg->stuff.book.label, strlen(msg->stuff.book.label));
 
     sprintf(is, "UPDATE %s SET  shelfno=%d, floorno=%d, name='%s', author='%s',\
-            label='%s', borrowed=%d, on_reading=%d, encoding_time='%s' WHERE bookno=%d",\
+            label='%s', borrowed=%c, on_reading=%c, encoding_time='%s' WHERE bookno=%d",\
             table_name, shelfno_save, floorno_save,es_name, es_author, es_label, msg->stuff.book.borrowed,\
             msg->stuff.book.on_reading, msg->stuff.book.encoding_time, bookno_update);
+#if DEBUG_TRACE
+                fprintf(stderr, "%s.\n", is);
+#endif
     res = mysql_query(&my_connection, is);
     if(!res)return(1);
 #if DEBUG_TRACE
@@ -510,8 +513,6 @@ int srvdb_book_count(message_cs_t *msg)
     srvdb_free_result();
 
     //图书总数
-    msg->stuff.book.code[0] = NON_SENSE_INT;
-    msg->stuff.book.code[1] = NON_SENSE_INT;
     msg->stuff.book.borrowed = 0;
     msg->stuff.book.on_reading = 0;
     strcpy(msg->stuff.book.name, "0");
