@@ -2,7 +2,7 @@
 #define _CLISRV_H_
 
 //书相关定义
-#define MAX_BOOK_NUM (36)
+#define MAX_BOOK_NUM (10000)
 #define BOOK_NAME_LEN (64*3) //UTF-8中文占用3个字节 
 #define AUTHOR_NAME_LEN (32*3)
 #define MAX_LABEL_NUM (10)
@@ -12,7 +12,7 @@ typedef struct{
     int  code[3];
     char name[BOOK_NAME_LEN+1];
     char author[AUTHOR_NAME_LEN+1];
-    char label[MAX_LABEL_NUM*(LABEL_NAME_LEN+1)+1]; 
+    char label[MAX_LABEL_NUM*LABEL_NAME_LEN+1]; 
     char borrowed;
     char on_reading;
     char encoding_time[20];

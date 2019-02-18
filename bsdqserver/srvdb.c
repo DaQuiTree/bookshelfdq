@@ -121,7 +121,7 @@ int srvdb_book_insert(message_cs_t *msg)
     char table_name[128];
     char es_name[BOOK_NAME_LEN+1];
     char es_author[AUTHOR_NAME_LEN+1];
-    char es_label[MAX_LABEL_NUM*LABEL_NAME_LEN+1];
+    char es_label[MAX_LABEL_NUM*(LABEL_NAME_LEN+1)+1];
     char is[1024];
     char temp_str[512];
     int res, bookno_used, shelfno_save, floorno_save;
@@ -240,7 +240,7 @@ int srvdb_book_update(message_cs_t *msg)
     char table_name[128];
     char es_name[BOOK_NAME_LEN+1];
     char es_author[AUTHOR_NAME_LEN+1];
-    char es_label[MAX_LABEL_NUM*LABEL_NAME_LEN+1];
+    char es_label[MAX_LABEL_NUM*(LABEL_NAME_LEN+1)+1];
     char is[1024];
     int  res, shelfno_save, floorno_save, bookno_update;
 
@@ -281,7 +281,7 @@ int srvdb_book_find(message_cs_t *msg, int *num_rows)
     int shelfno_save, floorno_save, bookno_start;
     char es_name_sql[BOOK_NAME_LEN+32+1]="";
     char es_author_sql[AUTHOR_NAME_LEN+32+1]="";
-    char es_label_sql[MAX_LABEL_NUM*LABEL_NAME_LEN+32+1]="";
+    char es_label_sql[MAX_LABEL_NUM*(LABEL_NAME_LEN+1)+32+1]="";
     char es_temp[BOOK_NAME_LEN+1];
     char floor_sql[32]="";
 

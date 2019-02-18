@@ -326,7 +326,7 @@ void clidb_book_reset(void)
 }
 
 
-int clidb_book_insert(book_entry_t *user_book)
+int clidb_book_insert(book_entry_t *user_book, int ins_pos)
 {
     datum local_key_datum;
     datum local_data_datum;
@@ -342,7 +342,10 @@ int clidb_book_insert(book_entry_t *user_book)
     }
 
     memset(key_to_add, '\0', sizeof(key_to_add));
-    sprintf(key_to_add, "book_%d", book_dbm_pos++);
+    if(ins_pos == -1)
+        sprintf(key_to_add, "book_%d", book_dbm_pos++);
+    else
+        sprintf(key_to_add, "book_%d", ins_pos);
     local_key_datum.dptr = (void *)key_to_add;
     local_key_datum.dsize = sizeof(key_to_add);
     local_data_datum.dptr = (void *)user_book;
@@ -440,4 +443,15 @@ int clidb_book_peek(book_entry_t *user_book, int peek_pos)
 #endif
 
     return 0;
+}
+
+int clidb_book_delete(int del_pos)
+{ 
+    book_entry_t user_book;
+
+    if(!clidb_book_peek(&user_book, del_pos))return(0);
+    user_book.encoding_time[0] = '\0';
+    if(!clidb_book_insert(&user_book, del_pos))return(0);
+
+    return(1);
 }

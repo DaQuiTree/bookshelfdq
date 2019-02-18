@@ -255,9 +255,10 @@ int client_shelf_loading_book(int shelfno, int bookno)
 }
 
 
-int client_shelf_delete_book(int shelfno, int bookno)
+int client_shelf_delete_book(int shelfno, int bookno, int dbm_pos)
 {
     message_cs_t msg;
+    int res;
 
     strcpy(msg.user, login_user);
     msg.request = req_delete_book_e;
@@ -265,18 +266,27 @@ int client_shelf_delete_book(int shelfno, int bookno)
     msg.stuff.book.code[1] = NON_SENSE_INT;
     msg.stuff.book.code[2] = bookno;
 
-    return(find_from_server(msg));
+    res = find_from_server(msg);
+    if(res == 1)
+        clidb_book_delete(dbm_pos);
+
+    return(res);
 }
 
-int client_shelf_tagging_book(int shelfno, book_entry_t *bookno)
+int client_shelf_tagging_book(int shelfno, book_entry_t *user_book, int dbm_pos)
 {
     message_cs_t msg;
+    int res;
 
     strcpy(msg.user, login_user);
     msg.request = req_update_book_e;
-    memcpy(&msg.stuff.book, bookno, sizeof(book_entry_t));
+    memcpy(&msg.stuff.book, user_book, sizeof(book_entry_t));
+    res = find_from_server(msg);
 
-    return(find_from_server(msg));
+    if(res == 1)
+        clidb_book_insert(user_book, dbm_pos);
+
+    return(res);
 }
 
 static int find_from_server(message_cs_t msg)
@@ -307,7 +317,7 @@ static int find_from_server(message_cs_t msg)
             return(1);
         }else{
             if(msg.request == req_find_book_e){//搜索命令特殊处理
-                clidb_book_insert(&msg.stuff.book);
+                clidb_book_insert(&msg.stuff.book, -1);
                 nfinds++;
             }else{
                 return(1);//执行成功

@@ -11,6 +11,11 @@ typedef enum{
 }ui_lookthrough_option_e;
 
 typedef enum{
+    bi_option_tagging,
+    bi_option_delete,
+}ui_bookinfo_option_e;
+
+typedef enum{
     page_nonsense_e,
     page_mainmenu_e,
     page_lookthrough_e,
