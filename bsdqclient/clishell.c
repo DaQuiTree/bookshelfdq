@@ -308,6 +308,40 @@ int client_shelf_count_book(int shelfno, book_count_t *user_bc)
     return(res);
 }
 
+int client_shelf_moving_book(int shelfno, book_entry_t *user_book, int dbm_pos, int move_action)
+{
+    message_cs_t msg;
+    int res, ret = 0;
+
+    strcpy(msg.user, login_user);
+    msg.request = req_update_book_e;
+    msg.stuff.book = *user_book;
+    if(move_action == 0){//读书需求
+        msg.stuff.book.on_reading = 1;
+        ret = 1;
+    }else if(move_action == 1){//还书或外借需求
+        //是否应该还书?
+        if(msg.stuff.book.on_reading == 1){
+            msg.stuff.book.on_reading = 0;
+            ret = 4;
+        }else if(msg.stuff.book.borrowed == 1){
+            msg.stuff.book.borrowed = 0;
+            ret = 4;
+        }else{//外借
+            msg.stuff.book.borrowed = 1;
+            ret = 2;
+        }
+    }
+    res = find_from_server(&msg);
+
+    if(res == 1)
+        clidb_book_insert(&msg.stuff.book, dbm_pos);
+    else
+        ret++;
+
+    return(ret);
+}
+
 static int find_from_server(message_cs_t *msg)
 {
     int res;
@@ -346,3 +380,4 @@ static int find_from_server(message_cs_t *msg)
 
     return(0);
 }
+

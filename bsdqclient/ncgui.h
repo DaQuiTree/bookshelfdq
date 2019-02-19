@@ -11,8 +11,10 @@ typedef enum{
 }ui_lookthrough_option_e;
 
 typedef enum{
+    bi_option_reading,
+    bi_option_borrow,
     bi_option_tagging,
-    bi_option_delete,
+    bi_option_delete
 }ui_bookinfo_option_e;
 
 typedef enum{
