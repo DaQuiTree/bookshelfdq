@@ -317,18 +317,18 @@ int client_shelf_moving_book(int shelfno, book_entry_t *user_book, int dbm_pos, 
     msg.request = req_update_book_e;
     msg.stuff.book = *user_book;
     if(move_action == 0){//读书需求
-        msg.stuff.book.on_reading = 1;
+        msg.stuff.book.on_reading = '1';
         ret = 1;
     }else if(move_action == 1){//还书或外借需求
         //是否应该还书?
-        if(msg.stuff.book.on_reading == 1){
-            msg.stuff.book.on_reading = 0;
+        if(msg.stuff.book.on_reading == '1'){
+            msg.stuff.book.on_reading = '0';
             ret = 4;
-        }else if(msg.stuff.book.borrowed == 1){
-            msg.stuff.book.borrowed = 0;
+        }else if(msg.stuff.book.borrowed == '1'){
+            msg.stuff.book.borrowed = '0';
             ret = 4;
         }else{//外借
-            msg.stuff.book.borrowed = 1;
+            msg.stuff.book.borrowed = '1';
             ret = 2;
         }
     }

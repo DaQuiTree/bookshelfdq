@@ -422,13 +422,15 @@ static int display_bookinfo_page(int shelfno)
                                 break;
                             default: break;
                         }
-                        show_book_info(pad_posx, WIN_WIDTH-PAD_BOXED_WIDTH, &local_book);
                         op_key = KEY_BACKSPACE;
                     } 
                 }
                 op_key = LOCAL_KEY_NON_SENSE;
-                if(local_book.encoding_time[0])
+                if(local_book.encoding_time[0]){//还原现场
                     destroy_lt_option_box(&opwin);
+                    clidb_book_peek(&local_book, cur_dbm_pos);
+                    show_book_info(pad_posx, WIN_WIDTH-PAD_BOXED_WIDTH, &local_book);
+                }
             } 
         }   
     }
