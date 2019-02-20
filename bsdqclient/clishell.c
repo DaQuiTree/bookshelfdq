@@ -236,6 +236,25 @@ int client_books_info_sync(book_count_t *bc)
 //封装client端的socket请求
 //
 
+int client_shelf_insert_book(book_entry_t *user_book)
+{
+    message_cs_t msg;
+    int res;
+
+    if((user_book->name[0] && user_book->author[0] && \
+        user_book->encoding_time[0] && user_book->code[2]) == 0)return 0;
+    strcpy(msg.user, login_user);
+    msg.request = req_insert_book_e;
+    msg.stuff.book = *user_book;
+    msg.stuff.book.code[2] = NON_SENSE_INT;
+
+    res = find_from_server(&msg);
+    if(res == 1)
+        clidb_book_insert(&msg.stuff.book, -1);
+
+    return(res);
+}
+
 int client_shelf_loading_book(int shelfno, int bookno)
 {
     message_cs_t msg;

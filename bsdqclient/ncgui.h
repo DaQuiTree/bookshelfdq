@@ -21,7 +21,8 @@ typedef enum{
     nb_option_name,
     nb_option_author,
     nb_option_nfloor,
-    nb_option_tagging
+    nb_option_tagging,
+    nb_option_finish
 }ui_newbook_option_e;
 
 typedef enum{
