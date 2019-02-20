@@ -6,8 +6,8 @@
 
 typedef enum{
     lt_option_open,
-    lt_option_destroy,
-    lt_option_newbook
+    lt_option_newbook,
+    lt_option_destroy
 }ui_lookthrough_option_e;
 
 typedef enum{
@@ -18,10 +18,18 @@ typedef enum{
 }ui_bookinfo_option_e;
 
 typedef enum{
+    nb_option_name,
+    nb_option_author,
+    nb_option_nfloor,
+    nb_option_tagging
+}ui_newbook_option_e;
+
+typedef enum{
     page_nonsense_e,
     page_mainmenu_e,
     page_lookthrough_e,
-    page_bookinfo_e
+    page_bookinfo_e,
+    page_newbook_e,
 }ui_page_type_e;
 
 typedef enum{
