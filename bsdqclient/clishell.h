@@ -13,4 +13,7 @@ int client_shelf_loading_book(int shelfno, int bookno);
 int client_shelf_delete_book(int shelfno, book_entry_t *user_book, int dbm_pos);
 int client_shelf_tagging_book(int shelfno, book_entry_t *user_book, int dbm_pos);
 int client_shelf_moving_book(int shelfno, book_entry_t *user_book, int dbm_pos, int move_action);
+int client_shelf_abandon_books(int shelfno);
+int client_shelf_unsorted_books(int shelfno);
+int client_shelf_delete_itself(int shelfno);
 #endif

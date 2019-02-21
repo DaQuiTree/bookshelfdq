@@ -5,6 +5,11 @@
 #include "clisrv.h"
 
 typedef enum{
+    ds_option_collect,
+    ds_option_abandon
+}ui_shelfdel_option_e;
+
+typedef enum{
     lt_option_open,
     lt_option_newbook,
     lt_option_destroy
@@ -38,6 +43,8 @@ typedef enum{
     menu_build_shelf_e,
     menu_search_book_e,
     menu_quit_e,
+    menu_non_sense_e,
+    menu_cycle_e
 }ui_menu_e;
 
 typedef struct{
@@ -58,6 +65,6 @@ void ncgui_clear_all_screen(void);
 
 ui_menu_e ncgui_get_choice(void);
 void ncgui_display_mainmenu_page(void);
-void ncgui_display_lookthrough_page(void);
+ui_menu_e ncgui_display_lookthrough_page(void);
 
 #endif

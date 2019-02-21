@@ -7,7 +7,6 @@
 #include "srvdb.h"
 #include "clisrv.h"
 
-
 static MYSQL my_connection;
 //和检索相关静态变量
 static MYSQL_RES *res_ptr = NULL;
@@ -214,7 +213,7 @@ int srvdb_book_delete(message_cs_t *msg)
 {
     char table_name[128];
     char is[1024];
-    int res, bookno_del;
+    int res, bookno_del, shelfno_save;
 
     if (msg->user[0] == '\0'){
 #if DEBUG_TRACE
@@ -224,13 +223,20 @@ int srvdb_book_delete(message_cs_t *msg)
     }
 
     sprintf(table_name, "%s_books", msg->user);
+    shelfno_save = msg->stuff.book.code[0];
     bookno_del = msg->stuff.book.code[2];
     
-    sprintf(is, "UPDATE %s SET cleaned=%d WHERE bookno=%d", table_name, BOOK_DEL, bookno_del);
+    if(bookno_del == NON_SENSE_INT && shelfno_save != NON_SENSE_INT)
+        sprintf(is, "UPDATE %s SET cleaned=%d WHERE shelfno=%d", table_name, BOOK_DEL, shelfno_save);
+    else
+        sprintf(is, "UPDATE %s SET cleaned=%d WHERE bookno=%d", table_name, BOOK_DEL, bookno_del);
     res = mysql_query(&my_connection, is);
     if(!res)return(1);
 #if DEBUG_TRACE
+    if(bookno_del != NON_SENSE_INT)
         fprintf(stderr, "Delete bookno %d error %d: %s\n", bookno_del, mysql_errno(&my_connection), mysql_error(&my_connection));
+    else
+        fprintf(stderr, "Delete books of shelfno %d error %d: %s\n", shelfno_save, mysql_errno(&my_connection), mysql_error(&my_connection));
 #endif
     return(0);
 }
@@ -256,22 +262,30 @@ int srvdb_book_update(message_cs_t *msg)
     floorno_save = msg->stuff.book.code[1];
     bookno_update = msg->stuff.book.code[2];
     
-    //保护字符串中的特殊字符
-    mysql_escape_string(es_name, msg->stuff.book.name, strlen(msg->stuff.book.name));
-    mysql_escape_string(es_author, msg->stuff.book.author, strlen(msg->stuff.book.author));
-    mysql_escape_string(es_label, msg->stuff.book.label, strlen(msg->stuff.book.label));
+    if(bookno_update == NON_SENSE_INT && shelfno_save != NON_SENSE_INT){//指定书架上所有图书变为未归档状态
+        sprintf(is, "UPDATE %s SET cleaned=%d WHERE shelfno=%d", table_name, BOOK_UNSORTED, shelfno_save);
+    }else{//更新指定图书
+        //保护字符串中的特殊字符
+        mysql_escape_string(es_name, msg->stuff.book.name, strlen(msg->stuff.book.name));
+        mysql_escape_string(es_author, msg->stuff.book.author, strlen(msg->stuff.book.author));
+        mysql_escape_string(es_label, msg->stuff.book.label, strlen(msg->stuff.book.label));
 
-    sprintf(is, "UPDATE %s SET  shelfno=%d, floorno=%d, name='%s', author='%s',\
-            label='%s', borrowed=%c, on_reading=%c, encoding_time='%s' WHERE bookno=%d",\
-            table_name, shelfno_save, floorno_save,es_name, es_author, es_label, msg->stuff.book.borrowed,\
-            msg->stuff.book.on_reading, msg->stuff.book.encoding_time, bookno_update);
+        sprintf(is, "UPDATE %s SET shelfno=%d, floorno=%d, name='%s', author='%s',\
+                label='%s', borrowed=%c, on_reading=%c, encoding_time='%s' WHERE bookno=%d",\
+                table_name, shelfno_save, floorno_save,es_name, es_author, es_label, msg->stuff.book.borrowed,\
+                msg->stuff.book.on_reading, msg->stuff.book.encoding_time, bookno_update);
+    }
 #if DEBUG_TRACE
                 fprintf(stderr, "%s.\n", is);
 #endif
     res = mysql_query(&my_connection, is);
     if(!res)return(1);
 #if DEBUG_TRACE
+    if(bookno_update != NON_SENSE_INT)
         fprintf(stderr, "Update bookno %d error %d: %s\n", bookno_update,\
+                mysql_errno(&my_connection), mysql_error(&my_connection));
+    else
+        fprintf(stderr, "Update books of shelfno %d error %d: %s\n", shelfno_save,\
                 mysql_errno(&my_connection), mysql_error(&my_connection));
 #endif
     return(0);

@@ -371,6 +371,59 @@ int client_shelf_moving_book(int shelfno, book_entry_t *user_book, int dbm_pos, 
     return(ret);
 }
 
+int client_shelf_abandon_books(int shelfno)
+{
+    message_cs_t msg;
+    int res;
+
+    strcpy(msg.user, login_user);
+    msg.request = req_delete_book_e;
+    memset(&msg.stuff.book, '\0', sizeof(book_entry_t));
+    msg.stuff.book.code[0] = shelfno;
+    msg.stuff.book.code[2] = NON_SENSE_INT;
+    res = find_from_server(&msg);
+
+    if(res == 1)
+        res = client_shelf_delete_itself(shelfno);
+
+    return(res);
+}
+
+int client_shelf_unsorted_books(int shelfno)
+{
+    message_cs_t msg;
+    int res;
+
+    strcpy(msg.user, login_user);
+    msg.request = req_update_book_e;
+    memset(&msg.stuff.book, '\0', sizeof(book_entry_t));
+    msg.stuff.book.code[0] = shelfno;
+    msg.stuff.book.code[2] = NON_SENSE_INT;
+    res = find_from_server(&msg);
+
+    if(res == 1)
+        res = client_shelf_delete_itself(shelfno);
+
+    return(res);
+}
+
+int client_shelf_delete_itself(int shelfno)
+{
+    message_cs_t msg;
+    int res;
+
+    strcpy(msg.user, login_user);
+    msg.request = req_remove_shelf_e;
+    memset(&msg.stuff.shelf, '\0', sizeof(shelf_entry_t));
+    msg.stuff.shelf.code = shelfno;
+    res = find_from_server(&msg);
+
+    if(res == 1)
+        (void)clidb_shelf_delete(shelfno);
+
+    return(res);
+}
+
 static int find_from_server(message_cs_t *msg)
 {
     int res;

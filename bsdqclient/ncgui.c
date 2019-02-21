@@ -35,6 +35,7 @@ char HEX_ASC[] = {'0', '1', '2', '3',\
 
 //按键定义
 #define LOCAL_KEY_NON_SENSE 0
+#define LOCAL_KEY_CERTAIN_MEANING 1
 
 char login_user[USER_NAME_LEN+1];
 
@@ -74,6 +75,12 @@ char *bookinfo_option[] = {
     0
 };
 
+char *shelfdel_option[] = {
+    " 招  领 ",
+    " 弃  置 ",
+    0
+};
+
 book_count_t gui_bc;
 shelf_count_t gui_sc;
 WINDOW *mainwin;
@@ -88,6 +95,7 @@ static void clear_line(WINDOW *win, int startx, int starty, int nlines, int line
 static int get_confirm(const char *prompt, char *option_default);
 
 //浏览书架相关
+static int pad_fill_shelves_info(WINDOW **win, slider_t *sld, int *para_logic_row);
 static void show_shelf_info(int posx, int posy, shelf_entry_t *user_shelf, book_count_t *user_bc);
 static void draw_lt_option_box(WINDOW **win, slider_t *sld, char *option[]);
 static void destroy_lt_option_box(WINDOW **win);
@@ -104,6 +112,9 @@ static int add_newbook_page(shelf_entry_t *user_shelf);
 static void get_newbook_info(book_entry_t *user_book);
 static void select_newbook_floor(shelf_entry_t *user_shelf, book_entry_t *user_book);
 static void show_newbook_info(book_entry_t *user_book);
+
+//删除书架相关
+static int delete_shelf_page(shelf_entry_t *user_shelf);
 
 int client_start_gui(char* hostname, char *user)
 {
@@ -152,6 +163,7 @@ void ncgui_clear_all_screen(void)
 ui_menu_e ncgui_get_choice(void)
 {
     slider_t mainmenu_slider;
+    int op_key;
 
     mainmenu_slider.win = stdscr;
     mainmenu_slider.start_posx = GREET_ROW+2;
@@ -162,9 +174,12 @@ ui_menu_e ncgui_get_choice(void)
     mainmenu_slider.max_row = 3;
 
     move_slider(&mainmenu_slider, 0);
-    get_choice(page_mainmenu_e, &mainmenu_slider, 3);
+    op_key = get_choice(page_mainmenu_e, &mainmenu_slider, 3);
+    
+    if(op_key == '\n' || op_key == KEY_ENTER)
+        return((ui_menu_e)mainmenu_slider.current_row);
 
-    return((ui_menu_e)mainmenu_slider.current_row);
+    return(menu_non_sense_e);
 }
 
 void ncgui_display_mainmenu_page(void)
@@ -202,11 +217,10 @@ void ncgui_display_mainmenu_page(void)
     refresh();
 }
 
-void ncgui_display_lookthrough_page(void)
+ui_menu_e ncgui_display_lookthrough_page(void)
 {
     int pad_posx = GREET_ROW+2, pad_posy = 8;
-    int first_line = 0, max_rows, logic_rows;
-    int i, option_offset = 0, nshelves = 0;
+    int first_line = 0, logic_rows = 0, option_offset = 0;
     int lt_key = LOCAL_KEY_NON_SENSE, op_key = LOCAL_KEY_NON_SENSE;
     shelf_entry_t local_shelf;
     book_count_t local_count;
@@ -222,32 +236,11 @@ void ncgui_display_lookthrough_page(void)
 
     refresh();
 
-    //shelves pad填充内容
-    padwin = newpad(PAD_HIGHT, PAD_WIDTH);
-    for(i = 1; i <= MAX_SHELF_NUM; i++){
-        if (clidb_shelf_exists(i)){
-            if(!clidb_shelf_get(i, &local_shelf)){
-                error_line(local_shelf.name);
-                return;
-            }
-            mvwprintw(padwin, nshelves++, 0, local_shelf.name);
-        }
-    }
-
-    //计算实际移动的和逻辑上的最大值
-    if(nshelves > PAD_BOXED_HIGHT - 1)
-        max_rows = PAD_BOXED_HIGHT - 1;
-    else
-        max_rows = nshelves - 1;
-    logic_rows = nshelves - 1;
+    //shelves pad填充内容并初始化滑块
+    if(!pad_fill_shelves_info(&padwin, &lt_slider, &logic_rows))
+        return(menu_non_sense_e);
 
     //滑块初始位置
-    lt_slider.win = stdscr;
-    lt_slider.start_posx = pad_posx;
-    lt_slider.start_posy = pad_posy - 3;
-    lt_slider.nstep = 1;
-    lt_slider.current_row = lt_slider.last_row = 0;
-    lt_slider.max_row = max_rows;
     move_slider(&lt_slider, 0);
     clidb_shelf_get(clidb_shelf_realno(first_line+lt_slider.current_row+1), &local_shelf);
     client_shelf_count_book(local_shelf.code, &local_count);
@@ -283,6 +276,9 @@ void ncgui_display_lookthrough_page(void)
                             op_key = display_bookinfo_page(&local_shelf);//修改op_key的值完成翻页功能
                             break;
                         case lt_option_destroy:
+                            op_key = delete_shelf_page(&local_shelf);
+                            //if(op_key == LOCAL_KEY_CERTAIN_MEANING)return(menu_cycle_e);//返回上一级并请求刷新屏幕
+                            return(menu_cycle_e);
                             break;
                         case lt_option_newbook:
                             op_key = add_newbook_page(&local_shelf);
@@ -310,6 +306,43 @@ void ncgui_display_lookthrough_page(void)
     }
 
     delwin(padwin);
+
+    return(menu_non_sense_e);
+}
+
+static int delete_shelf_page(shelf_entry_t *user_shelf)
+{
+    WINDOW *dswin;
+    slider_t op_slider;
+    int op_key = LOCAL_KEY_NON_SENSE;
+
+    draw_lt_option_box(&dswin, &op_slider,shelfdel_option);
+    (void)get_confirm("书架上的图书如何处理?","Certain");
+    while(op_key != KEY_BACKSPACE){
+        op_key = get_choice(page_lookthrough_e, &op_slider, op_slider.max_row);
+        switch(op_slider.current_row)
+        {
+            case ds_option_collect:
+                if(client_shelf_unsorted_books(user_shelf->code))
+                    error_line("设置图书招领成功!可通过拾遗操作进行招领");
+                else
+                    error_line("设置图书招领失败...");
+                break;
+            case ds_option_abandon:
+                if(client_shelf_abandon_books(user_shelf->code))
+                    error_line("弃置图书成功!");
+                else
+                    error_line("弃置图书失败...");
+                break;
+            default:
+                break;
+        }
+    } 
+
+    destroy_lt_option_box(&dswin);
+    if(op_key == KEY_BACKSPACE)return(op_key);
+
+    return(1);
 }
 
 static int add_newbook_page(shelf_entry_t *user_shelf)
@@ -859,22 +892,22 @@ static void draw_lt_option_box(WINDOW **win, slider_t *sld, char *option[])
         option_ptr++;
         nline++;
     }
+
+    clear_line(NULL, op_row, op_column, hight, PAD_BOXED_WIDTH);
     hight -= 3-nline;
     op_row += 3-nline;
 
-    clear_line(NULL, op_row, op_column, hight, PAD_BOXED_WIDTH);
-    *win = subwin(stdscr, hight, 15, op_row, op_column);
+    *win = newwin(hight, 15, op_row, op_column);
     box(*win, ACS_VLINE, ACS_HLINE);
 
-    touchwin(stdscr);
-    refresh();
-    
     option_ptr = option;
     while(*option_ptr){
-        mvprintw(op_row+i, op_column+3, *option_ptr);
+        mvwprintw(*win, i, 3, *option_ptr);
         option_ptr++;
         i++;
     }
+
+    wrefresh(*win);
 
     //滑块初始位置
     sld->win = stdscr;
@@ -889,9 +922,8 @@ static void draw_lt_option_box(WINDOW **win, slider_t *sld, char *option[])
 static void destroy_lt_option_box(WINDOW **win)
 {
     wclear(*win);
+    wrefresh(*win);
     delwin(*win);
-    touchwin(stdscr);
-    refresh();
 }
 
 static void scroll_pad(slider_t *sld, int logic_row, int *nline)
@@ -979,6 +1011,48 @@ static void split_labels(char *label, char rev[][37])
     strncpy(rev[index/2], label+last_offset+1, offset-last_offset);
 } 
 
+static int pad_fill_shelves_info(WINDOW **win, slider_t *sld, int *para_logic_row)
+{
+    int pad_posx = GREET_ROW+2, pad_posy = 8;
+    char str_show[40] = {0};
+    int str_len = 0, str_limit = 30;
+    shelf_entry_t local_shelf;
+    int i, nshelves = 0;
+
+    *win = newpad(PAD_HIGHT, PAD_WIDTH);
+    for(i = 1; i <= MAX_SHELF_NUM; i++){
+        if(clidb_shelf_exists(i)){
+            if(!clidb_shelf_get(i, &local_shelf)){
+                error_line(local_shelf.name);
+                return 0;
+            }
+            str_len = strlen(local_shelf.name);
+            if(str_len > str_limit){
+                strncpy(str_show, local_shelf.name, str_limit);
+                strcat(str_show, "...");
+            }else{
+                strncpy(str_show, local_shelf.name, str_len);
+            }
+            mvwprintw(*win, nshelves++, 0, "%s", str_show);
+            memset(str_show, '\0', sizeof(str_show));
+        }
+    }
+
+    //计算实际移动的和逻辑上的最大值
+    if(nshelves > PAD_BOXED_HIGHT - 1)
+        sld->max_row = PAD_BOXED_HIGHT - 1;
+    else
+        sld->max_row = nshelves - 1;
+    *para_logic_row = nshelves -1;
+    sld->win = stdscr;
+    sld->start_posx = pad_posx;
+    sld->start_posy = pad_posy - 3;
+    sld->nstep = 1;
+    sld->current_row = sld->last_row = 0;
+
+    return (1);
+}
+
 static void show_shelf_info(int startx, int starty, shelf_entry_t *user_shelf, book_count_t *user_bc)
 { 
     clear_line(NULL, startx, starty, PAD_BOXED_HIGHT, PAD_BOXED_WIDTH);
@@ -1047,9 +1121,14 @@ static int get_confirm(const char *prompt, char* option_default)
 {
     int confirmed = 0;
     char first_char = 'n';
+    char yY_str[] = "(Y/y)";
 
+    if(option_default[0] == 'C')//不获取用户选择,仅作为提示
+        yY_str[0] = '\0';
     clear_line(NULL, Q_ROW, 1, 1, WIN_WIDTH-2);
-    mvprintw(Q_ROW, 5, "%s(Y/y) (type Enter for %s)", prompt, option_default);
+    mvprintw(Q_ROW, 5, "%s%s (type Enter for %s)", prompt, yY_str, option_default);
+    if(option_default[0] == 'C')//不获取用户选择,仅作为提示
+        return 1;
     if(!cursor_state){
         curs_set(1);
     }
