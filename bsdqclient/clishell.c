@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "socketcom.h"
 #include "clishell.h"
@@ -240,9 +241,18 @@ int client_shelf_insert_book(book_entry_t *user_book)
 {
     message_cs_t msg;
     int res;
+    struct tm *tm_ptr;
+    time_t the_time;
 
-    if((user_book->name[0] && user_book->author[0] && \
-        user_book->encoding_time[0] && user_book->code[2]) == 0)return 0;
+    //信息不完整
+    if((user_book->name[0] && user_book->author[0] && user_book->code[2]) == 0)return 0;
+
+    //记录时间
+    (void)time(&the_time);
+    tm_ptr = localtime(&the_time);
+    sprintf(user_book->encoding_time, "%02d-%02d-%02d %02dh",\
+            tm_ptr->tm_year-100, tm_ptr->tm_mon+1, tm_ptr->tm_mday, tm_ptr->tm_hour);
+
     strcpy(msg.user, login_user);
     msg.request = req_insert_book_e;
     msg.stuff.book = *user_book;
