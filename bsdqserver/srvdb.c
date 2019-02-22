@@ -271,9 +271,9 @@ int srvdb_book_update(message_cs_t *msg)
         mysql_escape_string(es_label, msg->stuff.book.label, strlen(msg->stuff.book.label));
 
         sprintf(is, "UPDATE %s SET shelfno=%d, floorno=%d, name='%s', author='%s',\
-                label='%s', borrowed=%c, on_reading=%c, encoding_time='%s' WHERE bookno=%d",\
+                label='%s', borrowed=%c, on_reading=%c, cleaned=%d, encoding_time='%s' WHERE bookno=%d",\
                 table_name, shelfno_save, floorno_save,es_name, es_author, es_label, msg->stuff.book.borrowed,\
-                msg->stuff.book.on_reading, msg->stuff.book.encoding_time, bookno_update);
+                msg->stuff.book.on_reading, BOOK_AVL, msg->stuff.book.encoding_time, bookno_update);
     }
 #if DEBUG_TRACE
                 fprintf(stderr, "%s.\n", is);

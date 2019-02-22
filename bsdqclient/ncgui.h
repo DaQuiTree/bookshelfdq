@@ -12,6 +12,7 @@ typedef enum{
 typedef enum{
     lt_option_open,
     lt_option_newbook,
+    lt_option_collectbook,
     lt_option_destroy
 }ui_lookthrough_option_e;
 
@@ -57,7 +58,8 @@ typedef struct{
     int max_row;//滑块最多可移动行
 }slider_t;
 
-int client_start_gui(char* hostname, char *user);
+int ncgui_connect_to_server(char* hostname, char *user);
+int ncgui_sync_from_server(void);
 
 void ncgui_init(void);
 void ncgui_close(void);

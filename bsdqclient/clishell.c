@@ -37,16 +37,54 @@ int client_initialize(char* host, char* user)
     return(1);
 }
 
-int client_shelves_info_sync(shelf_count_t *sc)
+int client_books_count_sync(book_count_t *bc)
 {
     message_cs_t msgreq, msgget;
-    int res, i;
-    int shelf_cnt = 0;
+    int res;
 
     strcpy(msgreq.user, login_user);
+    msgreq.stuff.book.code[0] = NON_SENSE_INT;
+    msgreq.stuff.book.code[1] = NON_SENSE_INT;
+    msgreq.request = req_count_book_e;
 
-    //获取书架总数
+    res = socket_client_send_request(&msgreq);
+    if(!res){
+#if DEBUG_TRACE
+        fprintf(stderr, "books_sync error: client send request error.\n");
+#endif
+        return(0);
+    }
+    
+    res = socket_client_get_response(&msgget);
+    if(!res){
+#if DEBUG_TRACE
+        fprintf(stderr, "books_sync error: client get response error.\n");
+#endif
+        return(0);
+    }
+
+    if(msgget.response == r_success){
+        *bc = *(book_count_t *)&msgget.extra_info;
+#if DEBUG_TRACE
+        printf("all: %d, borrowed: %d, on_reading: %d, unsorted: %d\n",\
+                bc->books_all, bc->books_borrowed, bc->books_on_reading, bc->books_unsorted);
+#endif
+        return(1);
+    }
+#if DEBUG_TRACE
+    fprintf(stderr, "books_sync error: client get response error.\n");
+#endif
+    return(0);
+}
+
+int client_shelves_count_sync(shelf_count_t *sc)
+{
+    message_cs_t msgreq, msgget;
+    int res;
+
+    strcpy(msgreq.user, login_user);
     msgreq.request = req_count_shelf_e;
+
     res = socket_client_send_request(&msgreq);
     if(!res){
 #if DEBUG_TRACE
@@ -73,6 +111,20 @@ int client_shelves_info_sync(shelf_count_t *sc)
                 msgget.error_text);
 #endif
     }
+
+    return (1);
+}
+
+int client_shelves_info_sync(shelf_count_t *sc)
+{
+    message_cs_t msgreq, msgget;
+    int res, i;
+    int shelf_cnt = 0;
+
+    strcpy(msgreq.user, login_user);
+
+    //获取书架总数
+    if(!client_shelves_count_sync(sc))return (0);
 
     //远程同步
     msgreq.request = req_find_shelf_e;
@@ -193,45 +245,6 @@ int client_shelves_info_sync(shelf_count_t *sc)
     return(1);
 }
 
-int client_books_info_sync(book_count_t *bc)
-{
-    message_cs_t msgreq, msgget;
-    int res;
-
-    strcpy(msgreq.user, login_user);
-    msgreq.stuff.book.code[0] = NON_SENSE_INT;
-    msgreq.stuff.book.code[1] = NON_SENSE_INT;
-    msgreq.request = req_count_book_e;
-
-    res = socket_client_send_request(&msgreq);
-    if(!res){
-#if DEBUG_TRACE
-        fprintf(stderr, "books_sync error: client send request error.\n");
-#endif
-        return(0);
-    }
-    
-    res = socket_client_get_response(&msgget);
-    if(!res){
-#if DEBUG_TRACE
-        fprintf(stderr, "books_sync error: client get response error.\n");
-#endif
-        return(0);
-    }
-
-    if(msgget.response == r_success){
-        *bc = *(book_count_t *)&msgget.extra_info;
-#if DEBUG_TRACE
-        printf("all: %d, borrowed: %d, on_reading: %d, unsorted: %d\n",\
-                bc->books_all, bc->books_borrowed, bc->books_on_reading, bc->books_unsorted);
-#endif
-        return(1);
-    }
-#if DEBUG_TRACE
-    fprintf(stderr, "books_sync error: client get response error.\n");
-#endif
-    return(0);
-}
 
 //
 //封装client端的socket请求
@@ -271,6 +284,7 @@ int client_shelf_loading_book(int shelfno, int bookno)
 
     strcpy(msg.user, login_user);
     msg.request = req_find_book_e;
+
     msg.stuff.book.code[0] = shelfno;
     msg.stuff.book.code[1] = NON_SENSE_INT;
     msg.stuff.book.code[2] = bookno;
@@ -280,10 +294,15 @@ int client_shelf_loading_book(int shelfno, int bookno)
     msg.stuff.book.borrowed = 0;
     msg.stuff.book.on_reading = 0;
 
+    if(shelfno == NON_SENSE_INT){
+        msg.stuff.book.borrowed = FLAG_FIND_UNSORTED;
+        msg.stuff.book.on_reading = FLAG_FIND_UNSORTED;
+    }
+
     return(find_from_server(&msg));
 }
 
-int client_shelf_delete_book(int shelfno, book_entry_t *user_book, int dbm_pos)
+int client_shelf_delete_book(book_entry_t *user_book, int dbm_pos)
 {
     message_cs_t msg;
     int res;
@@ -298,6 +317,24 @@ int client_shelf_delete_book(int shelfno, book_entry_t *user_book, int dbm_pos)
     if(res == 1){
         clidb_book_delete(dbm_pos);
         user_book->encoding_time[0] = '\0';
+    }
+
+    return(res);
+}
+
+int client_shelf_collecting_book(int shelfno, book_entry_t *user_book, int dbm_pos)
+{
+    message_cs_t msg;
+    int res;
+
+    strcpy(msg.user, login_user);
+    msg.request = req_update_book_e;
+    msg.stuff.book = *user_book;
+    msg.stuff.book.code[0] = shelfno;
+    res = find_from_server(&msg);
+    if(res == 1){
+        user_book->encoding_time[11] = 'H';
+        clidb_book_insert(user_book, dbm_pos);
     }
 
     return(res);
@@ -383,9 +420,6 @@ int client_shelf_abandon_books(int shelfno)
     msg.stuff.book.code[2] = NON_SENSE_INT;
     res = find_from_server(&msg);
 
-    if(res == 1)
-        res = client_shelf_delete_itself(shelfno);
-
     return(res);
 }
 
@@ -400,9 +434,6 @@ int client_shelf_unsorted_books(int shelfno)
     msg.stuff.book.code[0] = shelfno;
     msg.stuff.book.code[2] = NON_SENSE_INT;
     res = find_from_server(&msg);
-
-    if(res == 1)
-        res = client_shelf_delete_itself(shelfno);
 
     return(res);
 }
@@ -423,6 +454,8 @@ int client_shelf_delete_itself(int shelfno)
 
     return(res);
 }
+
+
 
 static int find_from_server(message_cs_t *msg)
 {
