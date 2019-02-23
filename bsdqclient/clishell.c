@@ -258,7 +258,7 @@ int client_shelf_insert_book(book_entry_t *user_book)
     time_t the_time;
 
     //信息不完整
-    if((user_book->name[0] && user_book->author[0] && user_book->code[2]) == 0)return 0;
+    if((user_book->name[0] && user_book->author[0] && user_book->code[1]) == 0)return 0;
 
     //记录时间
     (void)time(&the_time);

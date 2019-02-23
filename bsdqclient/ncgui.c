@@ -121,6 +121,11 @@ static void show_newbook_info(book_entry_t *user_book);
 //删除书架相关
 static int delete_shelf_page(shelf_entry_t *user_shelf, book_count_t *sc);
 
+//检索图书相关
+void draw_searchbook_page_framework(WINDOW *win);
+static void print_searchbook_prompt(void);
+static int handle_searchbook_keyword(char *keyword, book_entry_t *user_book);
+
 int ncgui_connect_to_server(char* hostname, char *user)
 {
     strcpy(login_user, user);
@@ -232,18 +237,85 @@ void ncgui_display_mainmenu_page(void)
 
 ui_menu_e ncgui_display_searchbook_page(void)
 {
-    int pad_posx = GREET_ROW+2, pad_posy = 8;
+    int max_str_len  = BOOK_NAME_LEN + AUTHOR_NAME_LEN + 31;//31:author等关键字占用的空间
+    int kb_posx = GREET_ROW+5, kb_posy = 8;
+    int kb_hight = 9, kb_width = 52;
+    char keyword[BOOK_NAME_LEN + AUTHOR_NAME_LEN + 32] = {0};
     book_entry_t local_book;
     ui_menu_e rt_menu=menu_non_sense_e; 
+    WINDOW *kbwin;
 
-    ncgui_clear_all_screen();
-    mvprintw(TITLE_ROW, WIN_WIDTH/2-8, menu_option[menu_search_book_e]); 
+    kbwin = newwin(kb_hight-2, kb_width-2, kb_posx+1, kb_posy+1);
+    draw_searchbook_page_framework(kbwin);
 
     //初始化新书结构
     memset(&local_book, '\0', sizeof(book_entry_t));
 
-    getch();
+    //获取用户输入并分析
+    curs_set(1);
+    wgetnstr(kbwin, keyword, max_str_len);
+    if(cursor_state == 0)curs_set(0);
+
+    handle_searchbook_keyword(keyword, &local_book);
+
     return(rt_menu);
+}
+
+static int handle_searchbook_keyword(char *keyword, book_entry_t *user_book)
+{
+    char *eptr = NULL;
+    char *kwptr = keyword;
+    char *kwrptr;
+    int kwlen = 0, i = 0;
+
+    kwlen = strlen(keyword);
+    kwrptr = keyword + kwlen - 1;
+    eptr = strchr(keyword, '=');
+    if(eptr == NULL){//模糊搜索
+        while(*kwptr == ' ' || *kwptr == '\t')kwptr++;//过滤keyword开头处连续空格和TAB
+        while(*kwrptr == ' '|| *kwrptr == '\t')kwrptr--;//过滤keyword结尾处...
+
+        user_book->name[0] = '-';
+        strncpy(user_book->name+1, keyword, BOOK_NAME_LEN-1);
+        user_book->author[0] = '-';
+        strncpy(user_book->author+1, keyword, AUTHOR_NAME_LEN-1);
+        user_book->label[0] = '-';
+        strncpy(user_book->label+1, keyword, LABEL_NAME_LEN-1);
+    }else{
+        
+    }
+}
+
+static void print_searchbook_prompt(void)
+{
+    int kb_posx = GREET_ROW, kb_posy = 10;
+
+    mvprintw(kb_posx, kb_posy,   "模糊: keyword");
+    mvprintw(kb_posx+1, kb_posy, "范围: n/a/l = keyword  ");
+    mvprintw(kb_posx+2, kb_posy, "精确: name/author = keyword ");
+    mvprintw(kb_posx+3, kb_posy, "备注: 1. 请使用英文逗号分割多关键字");
+    mvprintw(kb_posx+4, kb_posy, "      2. (n/name:书名 a/author:作者 l:标签)");
+
+    refresh();
+}
+
+void draw_searchbook_page_framework(WINDOW *win)
+{
+    int max_str_len  = BOOK_NAME_LEN + AUTHOR_NAME_LEN + 32;//32 author等关键字占用的空间
+    int kb_posx = GREET_ROW+5, kb_posy = 8;
+    int kb_hight = 9, kb_width = 52;
+    WINDOW *boxwin;
+
+    ncgui_clear_all_screen();
+    mvprintw(TITLE_ROW, WIN_WIDTH/2-8, menu_option[menu_search_book_e]); 
+    print_searchbook_prompt();
+
+    boxwin = subwin(stdscr, kb_hight, kb_width, kb_posx, kb_posy);
+    box(boxwin, ACS_VLINE, ACS_HLINE);
+    touchwin(stdscr);
+    refresh();
+
+    wrefresh(win);
 }
 
 ui_menu_e ncgui_display_lookthrough_page(void)
@@ -514,6 +586,9 @@ static void get_newbook_info(book_entry_t *user_book)
     int df_hight = 9, df_width = 40;
     int box_posx, box_posy, box_hight, box_width;
     int max_str_len = BOOK_NAME_LEN;
+    char temp_str[BOOK_NAME_LEN+1];
+    char *tsptr, *tsrptr;
+    int tslen = 0;
     WINDOW *nbwin, *boxwin;
 
     switch(user_book->code[2]){
@@ -537,11 +612,33 @@ static void get_newbook_info(book_entry_t *user_book)
     //获取用户输入
     curs_set(1);
     if(user_book->code[2] == nb_option_name)
-        wgetnstr(nbwin, user_book->name, max_str_len);
+        wgetnstr(nbwin, temp_str, max_str_len);
     else if(user_book->code[2] == nb_option_author)
-        wgetnstr(nbwin, user_book->author, max_str_len);
+        wgetnstr(nbwin, temp_str, max_str_len);
     if(cursor_state == 0)curs_set(0);
 
+    //过滤字符串首尾连续的空格
+    tsptr = temp_str;
+    if((tslen = strlen(temp_str)) > 0){
+        while((*tsptr == ' ' || *tsptr == '\t') && tslen != '\0')tsptr++;
+        tsrptr = temp_str + tslen - 1;
+        while(*tsrptr == ' ' || *tsrptr == '\t'){
+            *tsrptr = '\0';
+            if(tsrptr == temp_str)break;
+            tsrptr--;
+        }
+        //替换掉用户输入的制表符
+        tsrptr = temp_str;
+        while(*tsrptr != '0'){
+            if(*tsrptr == '\t')*tsrptr = '?';
+            tsrptr++;
+        }
+    }
+
+    if(user_book->code[2] == nb_option_name)
+        strcpy(user_book->name, tsptr);
+    else if(user_book->code[2] == nb_option_author)
+        strcpy(user_book->author, tsptr);
 
     //清除编辑框
     wclear(boxwin);
@@ -838,7 +935,7 @@ static int display_bookinfo_page(shelf_entry_t *user_shelf, int collect_mode)
 static int next_page_bookinfo(WINDOW *win, int *shelfno, int *bookno)
 {
     book_entry_t local_book;
-    int nbooks = 0, str_len = 0, str_limit = 24,res;
+    int nbooks = 0, str_len = 0, str_limit = 18, res;
     char str_show[40]={0};
 
     //使用缓存内数据
@@ -850,7 +947,17 @@ static int next_page_bookinfo(WINDOW *win, int *shelfno, int *bookno)
             refresh();
             return(-1);
         }
-        mvwprintw(win, nbooks++, 0, "《%s》", local_book.name);
+        str_len = strlen(local_book.name);
+        strcat(str_show, "《");
+        if(str_len > str_limit){
+            strncpy(str_show+3, local_book.name, str_limit);
+            strcat(str_show, "...》");
+        }else{
+            strncpy(str_show+3, local_book.name, str_len);
+            strcat(str_show, "》");
+        }
+        mvwprintw(win, nbooks++, 0, "%s",  str_show);
+        memset(str_show, '\0', sizeof(str_show));
     }
 
     if(nbooks > 0)return(nbooks);
@@ -1025,6 +1132,9 @@ static void show_book_info(int startx, int starty, book_entry_t *user_book)
 { 
     char unique[8];
     char slabel[MAX_LABEL_NUM/2][2*LABEL_NAME_LEN+1];
+    int str_len = 0;
+    int str_limit = 20;
+    char str_show[40]={0};
     int i = 0, j = 0;
 
     clear_line(NULL, startx, starty, PAD_BOXED_HIGHT, PAD_BOXED_WIDTH);
@@ -1048,7 +1158,14 @@ static void show_book_info(int startx, int starty, book_entry_t *user_book)
 
     //显示图书信息
     mvwprintw(stdscr, startx+i++, starty, "编号: %s", unique);
-    mvwprintw(stdscr, startx+i++, starty, "作者: %s", user_book->author);
+    str_len = strlen(user_book->author);
+    if(str_len > str_limit){
+        strncpy(str_show, user_book->author, str_limit);
+        strcat(str_show, "...");
+    }else{
+        strncpy(str_show, user_book->author, str_len);
+    }
+    mvwprintw(stdscr, startx+i++, starty, "作者: %s",  str_show);
     mvwprintw(stdscr, startx+i++, starty, "位置: %d层%d排", user_book->code[1]/16, user_book->code[1]%16);
     mvwprintw(stdscr, startx+i++, starty, "上架时间: %s", user_book->encoding_time);
     if(user_book->on_reading == '1')

@@ -198,7 +198,7 @@ int srvdb_book_insert(message_cs_t *msg)
     }
          
     sprintf(is, "INSERT INTO %s(shelfno, floorno, bookno, name, author, label, borrowed, on_reading, cleaned, encoding_time)\
-            VALUES(%d, %d, %d, '%s', '%s', '%s', %d, %d, %d, '%s')", table_name, shelfno_save, \
+            VALUES(%d, %d, %d, '%s', '%s', '%s', %c, %c, %d, '%s')", table_name, shelfno_save, \
             floorno_save, bookno_used+1, es_name, es_author, es_label, msg->stuff.book.borrowed, \
             msg->stuff.book.on_reading, BOOK_AVL, msg->stuff.book.encoding_time);
     res = mysql_query(&my_connection, is);
