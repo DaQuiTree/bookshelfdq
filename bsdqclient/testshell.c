@@ -24,6 +24,10 @@ int main()
                 ncgui_clear_all_screen();
                 ret_menu = ncgui_display_lookthrough_page();
                 break;
+            case menu_search_book_e:
+                ncgui_clear_all_screen();
+                ret_menu = ncgui_display_searchbook_page();
+                break;
             case menu_quit_e:
                 running = 0;
                 break;

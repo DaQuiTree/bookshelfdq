@@ -59,8 +59,12 @@ char *newbook_option[] = {
 char *lookthrough_option[] = {
     " 打  开 ",
     " 上  新 ",
-    " 拾  遗 ",
     " 拆  除 ",
+    0,
+    " 打  开 ",
+    " 上  新 ",
+    " 拆  除 ",
+    " 拾  遗 ",
     0
 };
 
@@ -226,6 +230,22 @@ void ncgui_display_mainmenu_page(void)
     refresh();
 }
 
+ui_menu_e ncgui_display_searchbook_page(void)
+{
+    int pad_posx = GREET_ROW+2, pad_posy = 8;
+    book_entry_t local_book;
+    ui_menu_e rt_menu=menu_non_sense_e; 
+
+    ncgui_clear_all_screen();
+    mvprintw(TITLE_ROW, WIN_WIDTH/2-8, menu_option[menu_search_book_e]); 
+
+    //初始化新书结构
+    memset(&local_book, '\0', sizeof(book_entry_t));
+
+    getch();
+    return(rt_menu);
+}
+
 ui_menu_e ncgui_display_lookthrough_page(void)
 {
     int pad_posx = GREET_ROW+2, pad_posy = 8;
@@ -271,11 +291,11 @@ ui_menu_e ncgui_display_lookthrough_page(void)
         //用户输入ENTER显示选择菜单
         if(lt_key == KEY_ENTER || lt_key == '\n'){
             move_slider(&lt_slider, 1);
-            if(local_count.books_all-local_count.books_unsorted > 0)
-                option_offset = 0;
-            else
-                option_offset = 1;//空书架不允许打开
+            option_offset = 0;
+            if(gui_bc.books_unsorted > 0)option_offset = 4;//存在待招领图书
+            if(local_count.books_all-local_count.books_unsorted <= 0)option_offset++;//空书架不允许打开
             draw_lt_option_box(&opwin, &op_slider, lookthrough_option+option_offset);
+            option_offset %= 4;
             while(op_key != KEY_BACKSPACE){ 
                 prefresh(padwin, first_line, 0, pad_posx, pad_posy, pad_posx+PAD_BOXED_HIGHT-1, PAD_BOXED_WIDTH);
                 //获取用户选择
@@ -680,7 +700,8 @@ static int display_bookinfo_page(shelf_entry_t *user_shelf, int collect_mode)
     }
 
     //初始化书籍信息
-    if((nbooks = next_page_bookinfo(padwin, &mode_shelfno, &local_bookno)) == -1)return rt_key;
+    if((nbooks = next_page_bookinfo(padwin, &mode_shelfno, &local_bookno)) == -1)return(rt_key);
+    if(nbooks == 0)return(rt_key);
 
     //计算实际移动的和逻辑上的最大值
     if(nbooks > PAD_BOXED_HIGHT - 1)

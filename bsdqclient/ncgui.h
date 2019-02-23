@@ -12,8 +12,8 @@ typedef enum{
 typedef enum{
     lt_option_open,
     lt_option_newbook,
+    lt_option_destroy,
     lt_option_collectbook,
-    lt_option_destroy
 }ui_lookthrough_option_e;
 
 typedef enum{
@@ -68,5 +68,6 @@ void ncgui_clear_all_screen(void);
 ui_menu_e ncgui_get_choice(void);
 void ncgui_display_mainmenu_page(void);
 ui_menu_e ncgui_display_lookthrough_page(void);
+ui_menu_e ncgui_display_searchbook_page(void);
 
 #endif
