@@ -19,4 +19,6 @@ int client_shelf_abandon_books(int shelfno);
 int client_shelf_unsorted_books(int shelfno);
 int client_shelf_delete_itself(int shelfno);
 
+int client_searching_book(int bookno, book_entry_t *search_entry);
+
 #endif

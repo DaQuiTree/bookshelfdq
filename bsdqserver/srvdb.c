@@ -435,6 +435,8 @@ int srvdb_book_find(message_cs_t *msg, int *num_rows)
 #if DEBUG_TRACE
             fprintf(stderr, "book_find(): %d rows with %d columns\n", *num_rows, res_fields);
 #endif
+            if(bookno_start == BREAK_LIMIT_INT)
+                srvdb_free_result();
             return(1); 
         }
     }
@@ -502,7 +504,7 @@ int srvdb_book_count(message_cs_t *msg)
 #endif
         return(0);
     }
-    srvdb_free_result();
+    //srvdb_free_result();
 
     //外借图书数量
     msg->stuff.book.on_reading = 0;
@@ -513,7 +515,7 @@ int srvdb_book_count(message_cs_t *msg)
 #endif
         return(0);
     }
-    srvdb_free_result();
+    //srvdb_free_result();
 
     //未处理图书数量
     msg->stuff.book.borrowed = FLAG_FIND_UNSORTED;
@@ -524,7 +526,7 @@ int srvdb_book_count(message_cs_t *msg)
 #endif
         return(0);
     }
-    srvdb_free_result();
+    //srvdb_free_result();
 
     //图书总数
     msg->stuff.book.borrowed = 0;
@@ -538,7 +540,7 @@ int srvdb_book_count(message_cs_t *msg)
 #endif
         return(0);
     }
-    srvdb_free_result();
+    //srvdb_free_result();
 
     bc.books_all += bc.books_unsorted;
     *(book_count_t *)&msg->extra_info = bc;

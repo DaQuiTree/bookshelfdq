@@ -291,8 +291,8 @@ int client_shelf_loading_book(int shelfno, int bookno)
     strcpy(msg.stuff.book.name, "-");
     strcpy(msg.stuff.book.author, "-");
     strcpy(msg.stuff.book.label, "-");
-    msg.stuff.book.borrowed = 0;
-    msg.stuff.book.on_reading = 0;
+    msg.stuff.book.borrowed = '0';
+    msg.stuff.book.on_reading = '0';
 
     if(shelfno == NON_SENSE_INT){
         msg.stuff.book.borrowed = FLAG_FIND_UNSORTED;
@@ -456,12 +456,36 @@ int client_shelf_delete_itself(int shelfno)
 }
 
 
+int client_searching_book(int bookno, book_entry_t *search_entry)
+{
+    message_cs_t msg;
+    int res;
+
+    strcpy(msg.user, login_user);
+    msg.request = req_find_book_e;
+
+    msg.stuff.book = *search_entry;
+    msg.stuff.book.code[1] = NON_SENSE_INT;
+    msg.stuff.book.code[2] = bookno;
+    msg.stuff.book.borrowed = '0';
+    msg.stuff.book.on_reading = '0';
+
+    res = find_from_server(&msg);
+
+    if(res == 1)
+        sprintf(search_entry->encoding_time, "检索到: %02ld 册", (unsigned long)msg.extra_info[0]);
+
+    return(res);
+}
 
 static int find_from_server(message_cs_t *msg)
 {
     int res;
     int nfinds = 0;
+    int flag_not_cached = 0;
 
+    if(msg->request == req_find_book_e && msg->stuff.book.code[2] == BREAK_LIMIT_INT)
+        flag_not_cached = 1;
     res = socket_client_send_request(msg);
     if(!res)return(0);
 
@@ -485,7 +509,8 @@ static int find_from_server(message_cs_t *msg)
             return(1);
         }else{
             if(msg->request == req_find_book_e){//搜索命令特殊处理
-                clidb_book_insert(&msg->stuff.book, -1);
+                if(!flag_not_cached)
+                    clidb_book_insert(&msg->stuff.book, -1);
                 nfinds++;
             }else{
                 return(1);//执行成功
