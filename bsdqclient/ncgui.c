@@ -105,9 +105,10 @@ static void error_line(char* error);
 static void clear_line(WINDOW *win, int startx, int starty, int nlines, int line_width);
 static int get_confirm(const char *prompt, char *option_default);
 static char *string_filter(char *fstr, char ch_sub);
-static int string_splitter(char *des_str, char *src_str, int part_pos, char ch_aim);
+static int string_splitter(char *des_str, int des_len, char *src_str, int part_pos, char ch_aim);
 
 //浏览书架相关
+static ui_menu_e display_lookthrough_page(int select_mode);
 static int pad_fill_shelves_info(WINDOW **win, slider_t *sld, int *para_logic_row);
 static void show_shelf_info(int posx, int posy, shelf_entry_t *user_shelf, book_count_t *user_bc);
 static void draw_lt_option_box(WINDOW **win, slider_t *sld, char *option[]);
@@ -130,7 +131,7 @@ static void show_newbook_info(book_entry_t *user_book);
 static int delete_shelf_page(shelf_entry_t *user_shelf, book_count_t *sc);
 
 //检索图书相关
-void draw_searchbook_page_framework(WINDOW *win);
+void draw_searchbook_page_framework(WINDOW *win, int shelfno);
 static void print_searchbook_prompt(void);
 static int handle_searchbook_keyword(char *keyword, book_entry_t *user_book);
 
@@ -243,6 +244,11 @@ void ncgui_display_mainmenu_page(void)
     refresh();
 }
 
+ui_menu_e ncgui_display_lookthrough_page(void)
+{
+    return(display_lookthrough_page(0));
+}
+
 ui_menu_e ncgui_display_searchbook_page(void)
 {
     int max_str_len  = BOOK_NAME_LEN + AUTHOR_NAME_LEN + 31;//31:author等关键字占用的空间
@@ -250,18 +256,19 @@ ui_menu_e ncgui_display_searchbook_page(void)
     int kb_hight = 9, kb_width = 52;
     char keyword[BOOK_NAME_LEN + AUTHOR_NAME_LEN + 32] = {0};
     book_entry_t local_book;
+    int shelfno = NON_SENSE_INT;
     ui_menu_e rt_menu=menu_non_sense_e; 
     WINDOW *kbwin;
-    char **option_ptr;
     slider_t kb_slider;
     int kb_key = LOCAL_KEY_NON_SENSE;
-    int i = 0;
-
-    kbwin = newwin(kb_hight-2, kb_width-2, kb_posx+1, kb_posy+1);
-    draw_searchbook_page_framework(kbwin);
 
     //初始化搜索结构
     memset(&local_book, '\0', sizeof(book_entry_t));
+    local_book.code[0] = NON_SENSE_INT;
+
+    //初始化界面
+    kbwin = newwin(kb_hight-2, kb_width-2, kb_posx+1, kb_posy+1);
+    draw_searchbook_page_framework(kbwin, local_book.code[0]);
 
     //获取用户输入并分析
     do{
@@ -271,36 +278,41 @@ ui_menu_e ncgui_display_searchbook_page(void)
         wgetnstr(kbwin, keyword, max_str_len);
         if(cursor_state == 0)curs_set(0);
     }while(handle_searchbook_keyword(keyword, &local_book) == 0);
-
-    //初始化上新界面
-    option_ptr = searchbook_option;
-    while(*option_ptr){
-        mvprintw(kb_posx + kb_hight + i + 1, kb_posy, *option_ptr);
-        option_ptr++;
-        i++;
-    };
+    mvprintw(kb_posx+1, kb_posy+1, "%s", keyword);
+    refresh();
 
     //滑块初始位置
     kb_slider.win = stdscr;
-    kb_slider.start_posx = kb_posx+kb_hight+1;
+    kb_slider.start_posx = kb_posx+kb_hight;
     kb_slider.start_posy = kb_posy - 3;
     kb_slider.nstep = 1;
     kb_slider.current_row = kb_slider.last_row = 0;
     kb_slider.max_row = 1;
     move_slider(&kb_slider, 0);
 
+    //获取用户选择
     while(kb_key != KEY_BACKSPACE)
     {
         kb_key = get_choice(page_searchbook_e, &kb_slider, kb_slider.max_row);
         if(kb_key == KEY_ENTER || kb_key == '\n'){
             switch(kb_slider.current_row){
                 case sb_option_select_shelf:
+                    ncgui_clear_all_screen();
+                    if((shelfno = display_lookthrough_page(1)) != NON_SENSE_INT)//用户锁定书架
+                        local_book.code[0] = shelfno;
+                    draw_searchbook_page_framework(kbwin, local_book.code[0]);
+                    mvprintw(kb_posx+1, kb_posy+1, "%s", keyword);
+                    refresh();
+                    move_slider(&kb_slider, 0);
                     break;
                 case sb_option_finish:
                     break;
             }
         }
     }
+
+    //扫尾工作
+    delwin(kbwin);
 
     return(rt_menu);
 }
@@ -311,7 +323,8 @@ static int handle_searchbook_keyword(char *keyword, book_entry_t *user_book)
     char *kwptr = keyword;
     char keyword_copy[BOOK_NAME_LEN + AUTHOR_NAME_LEN + 32] = {0};
     char sub_keyword[BOOK_NAME_LEN + AUTHOR_NAME_LEN + 32] = {0};
-    char sub_value[BOOK_NAME_LEN+1] = {0};
+    char sub_value[BOOK_NAME_LEN + AUTHOR_NAME_LEN + 32] = {0};
+    int sub_len = BOOK_NAME_LEN+AUTHOR_NAME_LEN+31;
     int i = 0, rt = 0;
 
     strcpy(keyword_copy, keyword);
@@ -330,22 +343,27 @@ static int handle_searchbook_keyword(char *keyword, book_entry_t *user_book)
         strncpy(user_book->label+1, kwptr, LABEL_NAME_LEN-1);
         rt++;
     }else{//混合搜索(精确+范围)
-        while(string_splitter(sub_keyword, keyword, i, ';')){
-            if(string_splitter(sub_value, sub_keyword, 0, '=')){
+        while(string_splitter(sub_keyword, sub_len, keyword, i++, ';')){
+            if(string_splitter(sub_value, sub_len, sub_keyword, 0, '=')){
                 if(strlen(sub_value) == 1){
-                    string_splitter(sub_value, sub_keyword, 1, '=');            
                     switch(sub_value[0]){
                         case 'n':
+                            if(user_book->name[0] == '=')break;//已有精确匹配存在
+                            string_splitter(sub_value, sub_len, sub_keyword, 1, '=');            
                             user_book->name[0] = '+';
                             strcpy(user_book->name+1, sub_value);
                             rt++;
                             break;
                         case 'a':
+                            if(user_book->name[0] == '=')break;
+                            string_splitter(sub_value, sub_len, sub_keyword, 1, '=');            
                             user_book->author[0] = '+';
                             strcpy(user_book->author+1, sub_value);
                             rt++;
                             break;
                         case 'l':
+                            if(user_book->name[0] == '=')break;
+                            string_splitter(sub_value, sub_len, sub_keyword, 1, '=');            
                             user_book->label[0] = '+';
                             strcpy(user_book->author+1, sub_value);
                             rt++;
@@ -355,12 +373,12 @@ static int handle_searchbook_keyword(char *keyword, book_entry_t *user_book)
                     }
                 }else{
                     if(!strcmp(sub_value, "name")){
-                        string_splitter(sub_value, sub_keyword, 1, '=');            
+                        string_splitter(sub_value, sub_len, sub_keyword, 1, '=');            
                         user_book->name[0] = '=';
                         strcpy(user_book->name+1, sub_value);
                         rt++;
                     }else if(!strcmp(sub_value, "author")){
-                        string_splitter(sub_value, sub_keyword, 1, '=');            
+                        string_splitter(sub_value, sub_len, sub_keyword, 1, '=');            
                         user_book->author[0] = '=';
                         strcpy(user_book->author+1, sub_value);
                         rt++;
@@ -369,6 +387,12 @@ static int handle_searchbook_keyword(char *keyword, book_entry_t *user_book)
             }
         }
     }
+
+    /*fprintf(stderr, "%s\n", user_book->name);*/
+    /*fprintf(stderr, "%s\n", user_book->author);*/
+    /*fprintf(stderr, "%s\n", user_book->label);*/
+    /*fprintf(stderr, "%d\n", rt);*/
+    /*getch();*/
 
     return(rt);
 }
@@ -386,25 +410,37 @@ static void print_searchbook_prompt(void)
     refresh();
 }
 
-void draw_searchbook_page_framework(WINDOW *win)
+void draw_searchbook_page_framework(WINDOW *win, int shelfno)
 {
     int kb_posx = GREET_ROW+5, kb_posy = 8;
     int kb_hight = 9, kb_width = 52;
     WINDOW *boxwin;
+    shelf_entry_t local_shelf;
 
     ncgui_clear_all_screen();
     mvprintw(TITLE_ROW, WIN_WIDTH/2-8, menu_option[menu_search_book_e]); 
     print_searchbook_prompt();
+
+    //显示菜单(锁定书架/开始检索)
+    mvprintw(kb_posx + kb_hight, kb_posy, *searchbook_option);
+    mvprintw(kb_posx + kb_hight + 1, kb_posy, *(searchbook_option+1));
+    if(shelfno != NON_SENSE_INT){
+        if(clidb_shelf_get(shelfno, &local_shelf))
+            mvprintw(kb_posx+ kb_hight, kb_posy + 12, "<%s>", local_shelf.name);
+    }else{
+            mvprintw(kb_posx+ kb_hight, kb_posy + 12, "<无>");
+    }
 
     boxwin = subwin(stdscr, kb_hight, kb_width, kb_posx, kb_posy);
     box(boxwin, ACS_VLINE, ACS_HLINE);
     touchwin(stdscr);
     refresh();
 
+    delwin(boxwin);
     wrefresh(win);
 }
 
-ui_menu_e ncgui_display_lookthrough_page(void)
+static ui_menu_e display_lookthrough_page(int select_mode)
 {
     int pad_posx = GREET_ROW+2, pad_posy = 8;
     int first_line = 0, logic_rows = 0, option_offset = 0;
@@ -414,6 +450,8 @@ ui_menu_e ncgui_display_lookthrough_page(void)
     slider_t lt_slider, op_slider;
     WINDOW *padwin, *opwin;
     ui_menu_e rt_menu = menu_non_sense_e; 
+    
+    if(select_mode == 1)rt_menu = NON_SENSE_INT; 
 
     //标题
     mvprintw(TITLE_ROW, WIN_WIDTH/2-8, menu_option[menu_look_through_e]); 
@@ -448,61 +486,68 @@ ui_menu_e ncgui_display_lookthrough_page(void)
         }
         //用户输入ENTER显示选择菜单
         if(lt_key == KEY_ENTER || lt_key == '\n'){
-            move_slider(&lt_slider, 1);
-            option_offset = 0;
-            if(gui_bc.books_unsorted > 0)option_offset = 4;//存在待招领图书
-            if(local_count.books_all-local_count.books_unsorted <= 0)option_offset++;//空书架不允许打开
-            draw_lt_option_box(&opwin, &op_slider, lookthrough_option+option_offset);
-            option_offset %= 4;
-            while(op_key != KEY_BACKSPACE){ 
-                prefresh(padwin, first_line, 0, pad_posx, pad_posy, pad_posx+PAD_BOXED_HIGHT-1, PAD_BOXED_WIDTH);
-                //获取用户选择
-                if(op_key != KEY_ENTER)op_key = get_choice(page_lookthrough_e, &op_slider, op_slider.max_row);
-                if(op_key == KEY_ENTER || op_key == '\n'){
-                    switch(op_slider.current_row+option_offset){
-                        case lt_option_open:
-                            op_key = display_bookinfo_page(&local_shelf, 0);//修改op_key的值完成翻页功能
-                            break;
-                        case lt_option_newbook:
-                            op_key = add_newbook_page(&local_shelf);
-                            break;
-                        case lt_option_collectbook:
-                            op_key = display_bookinfo_page(&local_shelf, 1);
-                            break;
-                        case lt_option_destroy:
-                            op_key = delete_shelf_page(&local_shelf, &local_count);
-                            if(op_key == LOCAL_KEY_CERTAIN_MEANING){
-                                lt_key = op_key = KEY_BACKSPACE;//返回主界面
-                                rt_menu = menu_cycle_e;//请求再次返回本界面
-                            }
-                            break;
-                        default: break;
-                    }
-                    if(op_key == LOCAL_KEY_NON_SENSE){
-                        op_key = KEY_BACKSPACE;//默认返回上一界面
-                        move_slider(&lt_slider, 0);
-                        ncgui_clear_all_screen();
-                        mvprintw(TITLE_ROW, WIN_WIDTH/2-8, menu_option[menu_look_through_e]); 
-                        move(WIN_HIGHT/4, WIN_WIDTH/2);
-                        wvline(stdscr, ACS_VLINE, WIN_HIGHT/10*6-1);
-                        refresh();
-                        clidb_shelf_get(clidb_shelf_realno(first_line+lt_slider.current_row+1), &local_shelf);
-                        client_shelf_count_book(local_shelf.code, &local_count);
-                        show_shelf_info(pad_posx, WIN_WIDTH-PAD_BOXED_WIDTH, &local_shelf, &local_count);
+            if(select_mode == 1){//用于获取书架编号的模式
+                if(get_confirm("在此书架范围内进行检索?", "Yes"))
+                    return(local_shelf.code);
+            }else{
+                move_slider(&lt_slider, 1);
+                option_offset = 0;
+                if(gui_bc.books_unsorted > 0)option_offset = 4;//存在待招领图书
+                if(local_count.books_all-local_count.books_unsorted <= 0)option_offset++;//空书架不允许打开
+                draw_lt_option_box(&opwin, &op_slider, lookthrough_option+option_offset);
+                option_offset %= 4;
+                while(op_key != KEY_BACKSPACE){ 
+                    prefresh(padwin, first_line, 0, pad_posx, pad_posy, pad_posx+PAD_BOXED_HIGHT-1, PAD_BOXED_WIDTH);
+                    //获取用户选择
+                    if(op_key != KEY_ENTER)op_key = get_choice(page_lookthrough_e, &op_slider, op_slider.max_row);
+                    if(op_key == KEY_ENTER || op_key == '\n'){
+                        switch(op_slider.current_row+option_offset){
+                            case lt_option_open:
+                                op_key = display_bookinfo_page(&local_shelf, 0);//修改op_key的值完成翻页功能
+                                break;
+                            case lt_option_newbook:
+                                op_key = add_newbook_page(&local_shelf);
+                                break;
+                            case lt_option_collectbook:
+                                op_key = display_bookinfo_page(&local_shelf, 1);
+                                break;
+                            case lt_option_destroy:
+                                op_key = delete_shelf_page(&local_shelf, &local_count);
+                                if(op_key == LOCAL_KEY_CERTAIN_MEANING){
+                                    lt_key = op_key = KEY_BACKSPACE;//返回主界面
+                                    rt_menu = menu_cycle_e;//请求再次返回本界面
+                                }
+                                break;
+                            default: break;
+                        }
+                        if(op_key == LOCAL_KEY_NON_SENSE){
+                            op_key = KEY_BACKSPACE;//默认返回上一界面
+                            move_slider(&lt_slider, 0);
+                            ncgui_clear_all_screen();
+                            mvprintw(TITLE_ROW, WIN_WIDTH/2-8, menu_option[menu_look_through_e]); 
+                            move(WIN_HIGHT/4, WIN_WIDTH/2);
+                            wvline(stdscr, ACS_VLINE, WIN_HIGHT/10*6-1);
+                            refresh();
+                            clidb_shelf_get(clidb_shelf_realno(first_line+lt_slider.current_row+1), &local_shelf);
+                            client_shelf_count_book(local_shelf.code, &local_count);
+                            show_shelf_info(pad_posx, WIN_WIDTH-PAD_BOXED_WIDTH, &local_shelf, &local_count);
+                        }
                     }
                 }
+                op_key = LOCAL_KEY_NON_SENSE;
+                destroy_lt_option_box(&opwin);
+                move_slider(&lt_slider, 0);
             }
-            op_key = LOCAL_KEY_NON_SENSE;
-            destroy_lt_option_box(&opwin);
-            move_slider(&lt_slider, 0);
         }
     }
 
     delwin(padwin);
 
     //同步信息
-    client_shelves_count_sync(&gui_sc);
-    client_books_count_sync(&gui_bc);
+    if(select_mode != 1){
+        client_shelves_count_sync(&gui_sc);
+        client_books_count_sync(&gui_bc);
+    }
 
     return(rt_menu);
 }
@@ -844,8 +889,8 @@ static int display_bookinfo_page(shelf_entry_t *user_shelf, int collect_mode)
     int op_key = LOCAL_KEY_NON_SENSE, rt_key = LOCAL_KEY_NON_SENSE;
     int option_offset = 0;
 
-    //书架变更
-    if((local_shelfno != shelfno && bcollect == collect_mode)|| bcollect != collect_mode){
+    //书架变更   //1:浏览书架时,变更了书架 2:浏览图书/拾遗/检索切换 3:进入检索模式
+    if((local_shelfno != shelfno && bcollect == collect_mode)|| bcollect != collect_mode || collect_mode == 2){
         local_shelfno = shelfno;
         bcollect = collect_mode;
         local_bookno = NON_SENSE_INT;
@@ -859,11 +904,15 @@ static int display_bookinfo_page(shelf_entry_t *user_shelf, int collect_mode)
     padwin = newpad(PAD_HIGHT, PAD_WIDTH);
     clear_line(NULL, pad_posx, WIN_WIDTH-PAD_BOXED_WIDTH, PAD_BOXED_HIGHT, PAD_BOXED_WIDTH);
 
-    //拾遗界面特殊处理
+    //拾遗、检索界面特殊处理
     if(bcollect == 1){
         clear_line(NULL, TITLE_ROW, 1, 1, WIN_WIDTH-2);
         mvprintw(TITLE_ROW, WIN_WIDTH/2-6, " 招 领 处 ♻ "); 
-        mode_shelfno = NON_SENSE_INT;
+        mode_shelfno = NON_SENSE_INT;//取特殊值
+    }else if(bcollect == 2){
+        clear_line(NULL, TITLE_ROW, 1, 1, WIN_WIDTH-2);
+        mvprintw(TITLE_ROW, WIN_WIDTH/2-8, " 检 索 结 果 ♻ "); 
+        mode_shelfno = BREAK_LIMIT_INT;//取特殊值
     }
 
     //初始化书籍信息
@@ -1457,24 +1506,31 @@ static char *string_filter(char *fstr, char ch_sub)
     return(fptr);
 }
 
-static int string_splitter(char *des_str, char *src_str, int part_pos, char ch_aim)
+static int string_splitter(char *des_str, int des_len, char *src_str, int part_pos, char ch_aim)
 {
-    char *aptr_start = src_str - 1, *aptr_end = src_str;
+    char *aptr_start, *aptr_end = src_str, *aptr_src = src_str;
     char temp_str[BOOK_NAME_LEN + AUTHOR_NAME_LEN + 32] = {0};
+    int temp_pos = part_pos;
 
-    while(part_pos > -1)
+    memset(des_str, '\0', des_len+1);
+    while(temp_pos > -1)
     {
+        temp_pos--;
         aptr_start = aptr_end;
-        if((aptr_end = strchr(src_str, ch_aim)) == NULL){ 
+        if((aptr_end = strchr(aptr_src, ch_aim)) != NULL){
+            aptr_src = aptr_end+1;
+        }else{//未找到目标字符,直接定位到尾部
             aptr_end = src_str+strlen(src_str);
             break;
         }
-        part_pos--;
     }
 
-    if(part_pos == -1){//找到相应子串
-        strncpy(temp_str, aptr_start+1, aptr_end-aptr_start);
-        strcpy(des_str, string_filter(temp_str, '\0'));
+    if(temp_pos == -1){//找到相应子串
+        if(part_pos == 0)//第0个字串特殊处理
+            strncpy(temp_str, aptr_start, aptr_end-aptr_start);
+        else
+            strncpy(temp_str, aptr_start+1, aptr_end-aptr_start-1);
+        strncpy(des_str, string_filter(temp_str, '\0'), des_len);//过滤空格字符
         return(1);
     }
 

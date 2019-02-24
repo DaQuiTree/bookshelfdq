@@ -30,4 +30,6 @@ int main()
         mkdir("bsdq_cache", 0777);
         printf("%d\n", result);
     }
+
+    printf("%d\n", sizeof(void *));
 }
