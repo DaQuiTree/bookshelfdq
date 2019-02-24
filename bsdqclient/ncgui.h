@@ -17,6 +17,11 @@ typedef enum{
 }ui_lookthrough_option_e;
 
 typedef enum{
+    sb_option_select_shelf,
+    sb_option_finish
+}ui_searchbook_option_e;
+
+typedef enum{
     bi_option_reading,
     bi_option_borrow,
     bi_option_tagging,
@@ -35,6 +40,7 @@ typedef enum{
     page_nonsense_e,
     page_mainmenu_e,
     page_lookthrough_e,
+    page_searchbook_e,
     page_bookinfo_e,
     page_newbook_e,
 }ui_page_type_e;

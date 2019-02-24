@@ -86,6 +86,12 @@ char *shelfdel_option[] = {
     0
 };
 
+char *searchbook_option[] ={
+    " 锁定书架 ",
+    " 开始检索 ",
+    0
+};
+
 book_count_t gui_bc;
 shelf_count_t gui_sc;
 WINDOW *mainwin;
@@ -98,6 +104,8 @@ static void move_slider(slider_t *sld, int unset);
 static void error_line(char* error);
 static void clear_line(WINDOW *win, int startx, int starty, int nlines, int line_width);
 static int get_confirm(const char *prompt, char *option_default);
+static char *string_filter(char *fstr, char ch_sub);
+static int string_splitter(char *des_str, char *src_str, int part_pos, char ch_aim);
 
 //浏览书架相关
 static int pad_fill_shelves_info(WINDOW **win, slider_t *sld, int *para_logic_row);
@@ -244,19 +252,55 @@ ui_menu_e ncgui_display_searchbook_page(void)
     book_entry_t local_book;
     ui_menu_e rt_menu=menu_non_sense_e; 
     WINDOW *kbwin;
+    char **option_ptr;
+    slider_t kb_slider;
+    int kb_key = LOCAL_KEY_NON_SENSE;
+    int i = 0;
 
     kbwin = newwin(kb_hight-2, kb_width-2, kb_posx+1, kb_posy+1);
     draw_searchbook_page_framework(kbwin);
 
-    //初始化新书结构
+    //初始化搜索结构
     memset(&local_book, '\0', sizeof(book_entry_t));
 
     //获取用户输入并分析
-    curs_set(1);
-    wgetnstr(kbwin, keyword, max_str_len);
-    if(cursor_state == 0)curs_set(0);
+    do{
+        wclear(kbwin);
+        wrefresh(kbwin);
+        curs_set(1);
+        wgetnstr(kbwin, keyword, max_str_len);
+        if(cursor_state == 0)curs_set(0);
+    }while(handle_searchbook_keyword(keyword, &local_book) == 0);
 
-    handle_searchbook_keyword(keyword, &local_book);
+    //初始化上新界面
+    option_ptr = searchbook_option;
+    while(*option_ptr){
+        mvprintw(kb_posx + kb_hight + i + 1, kb_posy, *option_ptr);
+        option_ptr++;
+        i++;
+    };
+
+    //滑块初始位置
+    kb_slider.win = stdscr;
+    kb_slider.start_posx = kb_posx+kb_hight+1;
+    kb_slider.start_posy = kb_posy - 3;
+    kb_slider.nstep = 1;
+    kb_slider.current_row = kb_slider.last_row = 0;
+    kb_slider.max_row = 1;
+    move_slider(&kb_slider, 0);
+
+    while(kb_key != KEY_BACKSPACE)
+    {
+        kb_key = get_choice(page_searchbook_e, &kb_slider, kb_slider.max_row);
+        if(kb_key == KEY_ENTER || kb_key == '\n'){
+            switch(kb_slider.current_row){
+                case sb_option_select_shelf:
+                    break;
+                case sb_option_finish:
+                    break;
+            }
+        }
+    }
 
     return(rt_menu);
 }
@@ -265,25 +309,68 @@ static int handle_searchbook_keyword(char *keyword, book_entry_t *user_book)
 {
     char *eptr = NULL;
     char *kwptr = keyword;
-    char *kwrptr;
-    int kwlen = 0, i = 0;
+    char keyword_copy[BOOK_NAME_LEN + AUTHOR_NAME_LEN + 32] = {0};
+    char sub_keyword[BOOK_NAME_LEN + AUTHOR_NAME_LEN + 32] = {0};
+    char sub_value[BOOK_NAME_LEN+1] = {0};
+    int i = 0, rt = 0;
 
-    kwlen = strlen(keyword);
-    kwrptr = keyword + kwlen - 1;
-    eptr = strchr(keyword, '=');
+    strcpy(keyword_copy, keyword);
+    kwptr = string_filter(keyword_copy, '\0');
+    user_book->name[0] = '0';
+    user_book->author[0] = '0';
+    user_book->label[0] = '0';
+
+    eptr = strchr(keyword_copy, '=');
     if(eptr == NULL){//模糊搜索
-        while(*kwptr == ' ' || *kwptr == '\t')kwptr++;//过滤keyword开头处连续空格和TAB
-        while(*kwrptr == ' '|| *kwrptr == '\t')kwrptr--;//过滤keyword结尾处...
-
         user_book->name[0] = '-';
-        strncpy(user_book->name+1, keyword, BOOK_NAME_LEN-1);
+        strncpy(user_book->name+1, kwptr, BOOK_NAME_LEN-1);
         user_book->author[0] = '-';
-        strncpy(user_book->author+1, keyword, AUTHOR_NAME_LEN-1);
+        strncpy(user_book->author+1, kwptr, AUTHOR_NAME_LEN-1);
         user_book->label[0] = '-';
-        strncpy(user_book->label+1, keyword, LABEL_NAME_LEN-1);
-    }else{
-        
+        strncpy(user_book->label+1, kwptr, LABEL_NAME_LEN-1);
+        rt++;
+    }else{//混合搜索(精确+范围)
+        while(string_splitter(sub_keyword, keyword, i, ';')){
+            if(string_splitter(sub_value, sub_keyword, 0, '=')){
+                if(strlen(sub_value) == 1){
+                    string_splitter(sub_value, sub_keyword, 1, '=');            
+                    switch(sub_value[0]){
+                        case 'n':
+                            user_book->name[0] = '+';
+                            strcpy(user_book->name+1, sub_value);
+                            rt++;
+                            break;
+                        case 'a':
+                            user_book->author[0] = '+';
+                            strcpy(user_book->author+1, sub_value);
+                            rt++;
+                            break;
+                        case 'l':
+                            user_book->label[0] = '+';
+                            strcpy(user_book->author+1, sub_value);
+                            rt++;
+                            break;
+                        default:
+                            break;
+                    }
+                }else{
+                    if(!strcmp(sub_value, "name")){
+                        string_splitter(sub_value, sub_keyword, 1, '=');            
+                        user_book->name[0] = '=';
+                        strcpy(user_book->name+1, sub_value);
+                        rt++;
+                    }else if(!strcmp(sub_value, "author")){
+                        string_splitter(sub_value, sub_keyword, 1, '=');            
+                        user_book->author[0] = '=';
+                        strcpy(user_book->author+1, sub_value);
+                        rt++;
+                    }
+                }
+            }
+        }
     }
+
+    return(rt);
 }
 
 static void print_searchbook_prompt(void)
@@ -301,7 +388,6 @@ static void print_searchbook_prompt(void)
 
 void draw_searchbook_page_framework(WINDOW *win)
 {
-    int max_str_len  = BOOK_NAME_LEN + AUTHOR_NAME_LEN + 32;//32 author等关键字占用的空间
     int kb_posx = GREET_ROW+5, kb_posy = 8;
     int kb_hight = 9, kb_width = 52;
     WINDOW *boxwin;
@@ -587,8 +673,7 @@ static void get_newbook_info(book_entry_t *user_book)
     int box_posx, box_posy, box_hight, box_width;
     int max_str_len = BOOK_NAME_LEN;
     char temp_str[BOOK_NAME_LEN+1];
-    char *tsptr, *tsrptr;
-    int tslen = 0;
+    char *tsptr;
     WINDOW *nbwin, *boxwin;
 
     switch(user_book->code[2]){
@@ -618,22 +703,7 @@ static void get_newbook_info(book_entry_t *user_book)
     if(cursor_state == 0)curs_set(0);
 
     //过滤字符串首尾连续的空格
-    tsptr = temp_str;
-    if((tslen = strlen(temp_str)) > 0){
-        while((*tsptr == ' ' || *tsptr == '\t') && tslen != '\0')tsptr++;
-        tsrptr = temp_str + tslen - 1;
-        while(*tsrptr == ' ' || *tsrptr == '\t'){
-            *tsrptr = '\0';
-            if(tsrptr == temp_str)break;
-            tsrptr--;
-        }
-        //替换掉用户输入的制表符
-        tsrptr = temp_str;
-        while(*tsrptr != '0'){
-            if(*tsrptr == '\t')*tsrptr = '?';
-            tsrptr++;
-        }
-    }
+    tsptr = string_filter(temp_str, '?');
 
     if(user_book->code[2] == nb_option_name)
         strcpy(user_book->name, tsptr);
@@ -1356,6 +1426,59 @@ static int get_confirm(const char *prompt, char* option_default)
     }
 
     return confirmed;
+}
+
+static char *string_filter(char *fstr, char ch_sub)
+{
+    char *frptr, *fptr;
+    int flen = 0;
+
+    //过滤字符串首尾连续的空格
+    fptr = fstr;
+    if((flen = strlen(fstr)) > 0){
+        while((*fptr == ' ' || *fptr == '\t') && flen != '\0')fptr++;
+        frptr = fstr + flen - 1;
+        while(*frptr == ' ' || *frptr == '\t'){
+            *frptr = '\0';
+            if(frptr == fstr)break;
+            frptr--;
+        }
+        flen = strlen(fptr);
+        //替换掉用户输入的制表符
+        if(ch_sub){
+            frptr = fptr;
+            while(*frptr != '0'){
+                if(*frptr == '\t')*frptr = ch_sub;
+                frptr++;
+            }
+        }
+    }
+
+    return(fptr);
+}
+
+static int string_splitter(char *des_str, char *src_str, int part_pos, char ch_aim)
+{
+    char *aptr_start = src_str - 1, *aptr_end = src_str;
+    char temp_str[BOOK_NAME_LEN + AUTHOR_NAME_LEN + 32] = {0};
+
+    while(part_pos > -1)
+    {
+        aptr_start = aptr_end;
+        if((aptr_end = strchr(src_str, ch_aim)) == NULL){ 
+            aptr_end = src_str+strlen(src_str);
+            break;
+        }
+        part_pos--;
+    }
+
+    if(part_pos == -1){//找到相应子串
+        strncpy(temp_str, aptr_start+1, aptr_end-aptr_start);
+        strcpy(des_str, string_filter(temp_str, '\0'));
+        return(1);
+    }
+
+    return(0);
 }
 
 //移动并显示滑块
