@@ -163,9 +163,7 @@ int clidb_shelf_get(int shelfno, shelf_entry_t *user_shelf)
 
 int clidb_shelf_exists(int shelfno)
 {
-    if (shelfno > MAX_SHELF_NUM)return(0);
-    if (shelf_record[shelfno-1] > 0)return(1);
-    return(0);
+    if (shelfno > MAX_SHELF_NUM)return(0); if (shelf_record[shelfno-1] > 0)return(1); return(0);
 }
 
 int clidb_shelf_not_syncs(int shelfno){

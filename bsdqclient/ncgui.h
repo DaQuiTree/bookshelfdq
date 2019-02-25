@@ -40,6 +40,7 @@ typedef enum{
     page_nonsense_e,
     page_mainmenu_e,
     page_lookthrough_e,
+    page_buildshelf_e,
     page_searchbook_e,
     page_bookinfo_e,
     page_newbook_e,
@@ -74,6 +75,7 @@ void ncgui_clear_all_screen(void);
 ui_menu_e ncgui_get_choice(void);
 void ncgui_display_mainmenu_page(void);
 ui_menu_e ncgui_display_lookthrough_page(void);
+ui_menu_e ncgui_display_buildshelf_page(void);
 ui_menu_e ncgui_display_searchbook_page(void);
 
 #endif
