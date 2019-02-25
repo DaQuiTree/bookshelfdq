@@ -458,6 +458,7 @@ int client_shelf_delete_itself(int shelfno)
 
 int client_searching_book(int bookno, book_entry_t *search_entry)
 {
+    static int new_mark = 0;//使用encoding_time保存检索结果,并使用第一个字符作为新检索标志
     message_cs_t msg;
     int res;
 
@@ -472,8 +473,10 @@ int client_searching_book(int bookno, book_entry_t *search_entry)
 
     res = find_from_server(&msg);
 
-    if(res == 1)
-        sprintf(search_entry->encoding_time, "检索到: %02ld 册", (unsigned long)msg.extra_info[0]);
+    if(bookno == BREAK_LIMIT_INT){
+        new_mark ^= 1;
+        sprintf(search_entry->encoding_time, "%d 检索到: %ld 册", new_mark, (unsigned long)msg.extra_info[0]);
+    }
 
     return(res);
 }

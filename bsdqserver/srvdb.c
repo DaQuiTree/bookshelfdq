@@ -295,7 +295,7 @@ int srvdb_book_find(message_cs_t *msg, int *num_rows)
 {
     char table_name[128];
     char is[1024];
-    int shelfno_save, floorno_save, bookno_start;
+    int shelfno_save, floorno_save, bookno_start, flag_autofree_result = 0;
     char es_name_sql[BOOK_NAME_LEN+32+1]="";
     char es_author_sql[AUTHOR_NAME_LEN+32+1]="";
     char es_label_sql[MAX_LABEL_NUM*(LABEL_NAME_LEN+1)+32+1]="";
@@ -321,6 +321,7 @@ int srvdb_book_find(message_cs_t *msg, int *num_rows)
     char *columns = "*";
     if(bookno_start == BREAK_LIMIT_INT){ //放开搜索结果数量限制?
         bookno_start = NON_SENSE_INT;
+        flag_autofree_result = 1;
         limit = MAX_BOOK_NUM;
         columns = "bookno";
     }
@@ -435,8 +436,10 @@ int srvdb_book_find(message_cs_t *msg, int *num_rows)
 #if DEBUG_TRACE
             fprintf(stderr, "book_find(): %d rows with %d columns\n", *num_rows, res_fields);
 #endif
-            if(bookno_start == BREAK_LIMIT_INT)
+            if(flag_autofree_result){
+                flag_autofree_result = 0;
                 srvdb_free_result();
+            }
             return(1); 
         }
     }
@@ -448,6 +451,7 @@ int srvdb_book_fetch_result(message_cs_t *msg)
     MYSQL_ROW sqlrow;
     int i = 0;
 
+    if(res_ptr == NULL)return(FETCH_RESULT_END);
     sqlrow = mysql_fetch_row(res_ptr);
     if (mysql_errno(&my_connection)){
 #if DEBUG_TRACE
@@ -495,7 +499,7 @@ int srvdb_book_count(message_cs_t *msg)
 {
     book_count_t bc;
 
-    msg->stuff.book.code[2] = BREAK_LIMIT_INT;
+    msg->stuff.book.code[2] = BREAK_LIMIT_INT;//打开限制并自动释放结果
     //在读图书数量
     msg->stuff.book.on_reading = FLAG_ON_READING;
     if(!srvdb_book_find(msg, &bc.books_on_reading)){
@@ -504,7 +508,6 @@ int srvdb_book_count(message_cs_t *msg)
 #endif
         return(0);
     }
-    //srvdb_free_result();
 
     //外借图书数量
     msg->stuff.book.on_reading = 0;
@@ -515,7 +518,6 @@ int srvdb_book_count(message_cs_t *msg)
 #endif
         return(0);
     }
-    //srvdb_free_result();
 
     //未处理图书数量
     msg->stuff.book.borrowed = FLAG_FIND_UNSORTED;
@@ -526,7 +528,6 @@ int srvdb_book_count(message_cs_t *msg)
 #endif
         return(0);
     }
-    //srvdb_free_result();
 
     //图书总数
     msg->stuff.book.borrowed = 0;
