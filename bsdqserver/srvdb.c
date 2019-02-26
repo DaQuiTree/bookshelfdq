@@ -179,7 +179,7 @@ int srvdb_book_insert(message_cs_t *msg)
             if(temp_str[0] != '\0'){
                 sscanf(temp_str, "%d", &bookno_used);
                 if(bookno_used >= MAX_BOOK_NUM){
-                    sprintf(msg->error_text, "Insert book failed: book number reached MAX.");
+                    sprintf(msg->error_text, "上架失败:图书数量达到上限");
                     return(0);
                 }
             }
@@ -617,7 +617,7 @@ int srvdb_shelf_build(message_cs_t *msg)
             if(temp_str[0] != '\0'){
                 sscanf(temp_str, "%d", &shelfno_used);
                 if(shelfno_used >= MAX_SHELF_NUM){
-                    sprintf(msg->error_text, "Insert shelf failed: shelf number reached MAX.");
+                    sprintf(msg->error_text, "打造失败:书架达到上限");
                     return(0);
                 }
             }

@@ -250,7 +250,7 @@ int client_shelves_info_sync(shelf_count_t *sc)
 //封装client端的socket请求
 //
 
-int client_shelf_insert_book(book_entry_t *user_book)
+int client_shelf_insert_book(book_entry_t *user_book, char *errInfo)
 {
     message_cs_t msg;
     int res;
@@ -268,13 +268,13 @@ int client_shelf_insert_book(book_entry_t *user_book)
 
     strcpy(msg.user, login_user);
     msg.request = req_insert_book_e;
-    msg.stuff.book = *user_book;
-    msg.stuff.book.code[2] = NON_SENSE_INT;
+    msg.stuff.book = *user_book; msg.stuff.book.code[2] = NON_SENSE_INT;
 
     res = find_from_server(&msg);
     if(res == 1)
         clidb_book_insert(&msg.stuff.book, -1);
-
+    else
+        strcpy(errInfo, msg.error_text);
     return(res);
 }
 
@@ -455,7 +455,6 @@ int client_shelf_delete_itself(int shelfno)
     return(res);
 }
 
-
 int client_searching_book(int bookno, book_entry_t *search_entry)
 {
     static int new_mark = 0;//使用encoding_time保存检索结果,并使用第一个字符作为新检索标志
@@ -477,6 +476,33 @@ int client_searching_book(int bookno, book_entry_t *search_entry)
         new_mark ^= 1;
         sprintf(search_entry->encoding_time, "%d 检索到: %ld 册", new_mark, (unsigned long)msg.extra_info[0]);
     }
+
+    return(res);
+}
+
+int client_build_shelf(shelf_entry_t *user_shelf, char *errInfo)
+{
+    message_cs_t msg;
+    int res;
+    struct tm *tm_ptr;
+    time_t the_time;
+
+    strcpy(msg.user, login_user);
+    msg.request = req_build_shelf_e;
+    msg.stuff.shelf = *user_shelf;
+
+    //记录时间
+    (void)time(&the_time);
+    tm_ptr = localtime(&the_time);
+    sprintf(msg.stuff.shelf.building_time, "%02d-%02d-%02d %02dh",\
+            tm_ptr->tm_year-100, tm_ptr->tm_mon+1, tm_ptr->tm_mday, tm_ptr->tm_hour);
+
+    res = find_from_server(&msg);
+
+    if(res == 1)
+        (void)clidb_shelf_insert(&msg.stuff.shelf);
+    else
+        strcpy(errInfo, msg.error_text);
 
     return(res);
 }

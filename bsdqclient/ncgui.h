@@ -12,6 +12,7 @@ typedef enum{
 typedef enum{
     lt_option_open,
     lt_option_newbook,
+    lt_option_profile,
     lt_option_destroy,
     lt_option_collectbook,
 }ui_lookthrough_option_e;
