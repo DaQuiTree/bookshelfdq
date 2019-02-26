@@ -137,6 +137,7 @@ static void show_searchbox_info(book_entry_t *local_book);
 
 //打造书架相关
 static int check_shelf_name(char *name);
+static void draw_shelf_profile(WINDOW *win, int nfloors, int depthArr[]);
 
 int ncgui_connect_to_server(char* hostname, char *user)
 {
@@ -338,14 +339,16 @@ ui_menu_e ncgui_display_searchbook_page(void)
 
 ui_menu_e ncgui_display_buildshelf_page(void)
 {
+    WINDOW *nbwin, *boxwin, *padwin;
     shelf_entry_t local_shelf;
     int df_posx = GREET_ROW, df_posy = 8;
     int df_hight = 8, df_width = 40;
     char temp_str[SHELF_NAME_LEN+1] = {0};
     char *tsptr;
-    WINDOW *nbwin, *boxwin;
     int nfloors = 1;
     int select_key = LOCAL_KEY_NON_SENSE;
+
+    int depth_record[MAX_FLOORS] = {0};
 
     //显示标题
     mvprintw(TITLE_ROW, WIN_WIDTH/2-8, menu_option[menu_build_shelf_e]);
@@ -399,14 +402,95 @@ ui_menu_e ncgui_display_buildshelf_page(void)
     }while(!get_confirm("确定?", "No"));
 
     //填入详细信息
-    
+    int pad_width = PAD_WIDTH, pad_hight = PAD_WIDTH;
+    padwin = newpad(pad_hight, pad_width);
+    draw_shelf_profile(padwin, nfloors, depth_record);
 
     //清除编辑框
     wclear(boxwin);
     delwin(boxwin);
     wclear(nbwin);
     delwin(nbwin);
+    wclear(padwin);
+    delwin(padwin);
     refresh();
+}
+
+static void draw_shelf_profile(WINDOW *win, int nfloors, int depthArr[])
+{
+    WINDOW *shelfbox;
+    WINDOW *footbox1, *footbox2;
+    int df_posx = 1, df_posy = 1;
+    int i;
+
+    //绘制出书架轮廓
+    shelfbox = subwin(win, nfloors*2+1, 12, df_posx, df_posy);
+    box(shelfbox, ACS_VLINE, ACS_HLINE);
+    footbox1 = subwin(win, 2, 2, df_posx+nfloors*2, df_posy);
+    box(footbox1, ACS_VLINE, ACS_HLINE);
+    footbox2 = subwin(win, 2, 2, df_posx+nfloors*2, df_posy+10);
+    box(footbox2, ACS_VLINE, ACS_HLINE);
+
+    for(i = 1; i < nfloors; i++)
+    {
+        wmove(win, df_posx+2*i, df_posy+1);
+        whline(win, ACS_HLINE, 10);
+        if(i%3 == 1)
+            mvwprintw(win, df_posx+2*nfloors+1-2*i, df_posy+12, "%2dF", i);
+    }
+
+    int pad_startx = GREET_ROW + 8, pad_starty = 24;
+    int pad_show_hight = 7, pad_show_width = 16;
+    int start_hight;
+    int profile_hight;
+    int select_key;
+    int curs_floor, curs_posy;
+
+    //支持翻页和调整书架深度
+    mvwprintw(win, 2*nfloors, df_posy+5, "%dR", depthArr[0]);
+    wmove(win, 2*nfloors, df_posy+5);
+    curs_floor = 1;
+    curs_posy = df_posy+5;
+    profile_hight = 2*nfloors + 2;
+    select_key = LOCAL_KEY_NON_SENSE;
+    if(profile_hight <= pad_show_hight)
+        start_hight = 0;
+    else
+        start_hight = profile_hight - pad_show_hight;
+    curs_set(1);
+    while(select_key != KEY_ENTER && select_key != '\n'){
+        if(profile_hight <= pad_show_hight)start_hight = 0;
+        prefresh(win, start_hight, 0, pad_startx, pad_starty,\
+                pad_startx+pad_show_hight, pad_starty+pad_show_width);
+        select_key = get_choice(page_buildshelf_e, NULL, 0);
+        switch(select_key)
+        {
+            case KEY_DOWN:
+                start_hight += 2;
+                start_hight > profile_hight-pad_show_hight? start_hight=profile_hight-pad_show_hight: 0;
+                --curs_floor < 1? curs_floor = 1: 0;
+                break;
+            case KEY_UP:
+                start_hight -= 2;
+                start_hight <= 0? start_hight=0 : 0;
+                ++curs_floor > nfloors? curs_floor = nfloors: 0;
+                break;
+            case KEY_LEFT:
+                --depthArr[curs_floor-1] < 0 ? depthArr[curs_floor-1]=0 : 0;
+                break;
+            case KEY_RIGHT:
+                ++depthArr[curs_floor-1] > MAX_DEPTH ? depthArr[curs_floor-1]=MAX_DEPTH : 0;
+                break;
+            default: break;
+        }
+        mvwprintw(win, profile_hight-curs_floor*2, curs_posy, "%dR", depthArr[curs_floor-1]);
+        wmove(win, profile_hight-curs_floor*2, curs_posy);
+    }
+    if(cursor_state == 0)curs_set(0);
+
+    delwin(shelfbox);
+    delwin(footbox1);
+    delwin(footbox2);
 }
 
 static int check_shelf_name(char *name)
