@@ -88,9 +88,9 @@ typedef struct{
 #define NON_SENSE_INT (0)
 #define BREAK_LIMIT_INT (MAX_BOOK_NUM + 1)
 
-#define FLAG_BORROWED (1)
-#define FLAG_ON_READING (1)
-#define FLAG_FIND_UNSORTED (2)
+#define FLAG_BORROWED ('1')
+#define FLAG_ON_READING ('1')
+#define FLAG_FIND_UNSORTED ('2')
 
 #define FETCH_RESULT_END (3)
 #define FETCH_RESULT_END_MORE (2)

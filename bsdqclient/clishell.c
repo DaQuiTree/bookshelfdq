@@ -467,8 +467,6 @@ int client_searching_book(int bookno, book_entry_t *search_entry)
     msg.stuff.book = *search_entry;
     msg.stuff.book.code[1] = NON_SENSE_INT;
     msg.stuff.book.code[2] = bookno;
-    msg.stuff.book.borrowed = '0';
-    msg.stuff.book.on_reading = '0';
 
     res = find_from_server(&msg);
 

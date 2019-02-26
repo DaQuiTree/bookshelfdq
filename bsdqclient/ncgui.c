@@ -207,7 +207,7 @@ ui_menu_e ncgui_get_choice(void)
     int op_key;
 
     mainmenu_slider.win = stdscr;
-    mainmenu_slider.start_posx = GREET_ROW+4;
+    mainmenu_slider.start_posx = GREET_ROW+1;
     mainmenu_slider.start_posy = WIN_WIDTH/2-10;
     mainmenu_slider.nstep = 3;
     mainmenu_slider.current_row = 0;
@@ -229,10 +229,10 @@ ui_menu_e ncgui_get_choice(void)
 
 void ncgui_display_mainmenu_page(void)
 {
-    char greet[20] = "  欢迎: ";
+    char greet[20];
     char details[80];
     char **option_ptr;
-    int menu_row = GREET_ROW + 4;
+    int menu_row = GREET_ROW + 1;
     int menu_column = 8;
     
     //标题
@@ -242,12 +242,12 @@ void ncgui_display_mainmenu_page(void)
 
     //欢迎行
     if(strlen(login_user) <= 8){
-        sprintf(greet, "欢迎: %s", login_user);
+        sprintf(greet, "Welcome: %s", login_user);
     }else{
         strncpy(greet+10, login_user, 8);
         strcpy(greet+18, "***");
     }
-    mvprintw(GREET_ROW, menu_column+19, greet);
+    mvprintw(DETAILS_ROW-3, menu_column+19, greet);
 
     //信息行
     sprintf(details, "书架%d个,图书%d册 在读%d册 借出%d册 未归档%d册",\
@@ -647,6 +647,20 @@ static void show_searchbox_info(book_entry_t *local_book)
     int str_limit = 30;
     char str_show[36] = {0};
 
+    //外借关键字
+    if(local_book->borrowed == '1'){
+        mvprintw(kb_posx, kb_posy+1, "外借图书查询...");
+        refresh();
+        return;
+    }
+
+    //在读关键字
+    if(local_book->on_reading == '1'){
+        mvprintw(kb_posx, kb_posy+1, "在读图书查询...");
+        refresh();
+        return;
+    }
+
     //检索框显示书名关键字
     if(strlen(local_book->name)-1 > str_limit){
         strncpy(str_show, local_book->name+1, str_limit);
@@ -706,12 +720,9 @@ static void show_searchbox_info(book_entry_t *local_book)
     memset(str_show, '\0', 36);
 
     //标签关键字
-    if(strlen(local_book->label)-1 > str_limit){
-        strncpy(str_show, local_book->label+1, str_limit);
+    strcpy(str_show, local_book->label+1);
+    if(strlen(local_book->label) >= MAX_LABEL_NUM)
         strcat(str_show, "...");
-    }else{
-        strcpy(str_show, local_book->label+1);
-    }
     switch(local_book->label[0]){
         case '0':
             break;
@@ -742,6 +753,7 @@ static int handle_searchbook_keyword(char *keyword, book_entry_t *user_book)
     user_book->name[0] = '0';
     user_book->author[0] = '0';
     user_book->label[0] = '0';
+    user_book->borrowed = user_book->on_reading = '0';
 
     eptr = strchr(keyword_copy, '=');
     if(eptr == NULL){//模糊搜索
@@ -757,6 +769,20 @@ static int handle_searchbook_keyword(char *keyword, book_entry_t *user_book)
             if(string_splitter(sub_value, sub_len, sub_keyword, 0, '=')){
                 if(strlen(sub_value) == 1){
                     switch(sub_value[0]){
+                        case 'r':
+                            string_splitter(sub_value, sub_len, sub_keyword, 1, '=');            
+                            if(sub_value[0] == '1' && sub_value[1] == '\0'){
+                                user_book->on_reading = '1';
+                                rt++;
+                            }
+                            break;
+                        case 'o':
+                            string_splitter(sub_value, sub_len, sub_keyword, 1, '=');            
+                            if(sub_value[0] == '1' && sub_value[1] == '\0'){
+                                user_book->borrowed = '1';
+                                rt++;
+                            }
+                            break;
                         case 'b':
                             if(user_book->name[0] == '=')break;//已有精确匹配存在
                             string_splitter(sub_value, sub_len, sub_keyword, 1, '=');            
@@ -798,12 +824,6 @@ static int handle_searchbook_keyword(char *keyword, book_entry_t *user_book)
         }
     }
 
-    /*fprintf(stderr, "%s\n", user_book->name);*/
-    /*fprintf(stderr, "%s\n", user_book->author);*/
-    /*fprintf(stderr, "%s\n", user_book->label);*/
-    /*fprintf(stderr, "%d\n", rt);*/
-    /*getch();*/
-
     return(rt);
 }
 
@@ -812,10 +832,10 @@ static void print_searchbook_prompt(void)
     int kb_posx = GREET_ROW, kb_posy = 10;
 
     mvprintw(kb_posx, kb_posy,   "模糊: keyword");
-    mvprintw(kb_posx+1, kb_posy, "范围: b/a/l = keyword  ");
+    mvprintw(kb_posx+1, kb_posy, "范围: b/a/l/ = keyword 或 r/o = 1");
     mvprintw(kb_posx+2, kb_posy, "精确: book/author = keyword ");
-    mvprintw(kb_posx+3, kb_posy, "备注: 1. 请使用英文逗号分割多关键字");
-    mvprintw(kb_posx+4, kb_posy, "      2. (b/book:书名 a/author:作者 l:标签)");
+    mvprintw(kb_posx+3, kb_posy, "备注: 请使用英文分号分割多关键字");
+    mvprintw(kb_posx+4, kb_posy, "(b/book:书名 a/author:作者 l:标签 r:在读 o:外借)");
 
     refresh();
 }
@@ -1369,6 +1389,7 @@ static int add_newbook_page(shelf_entry_t *user_shelf)
                             error_line("上架图书成功!");
                             if(get_confirm("继续输入?", "Yes")){
                                 memset(&local_book, '\0', sizeof(book_entry_t));
+                                clear_line(NULL, pad_posx, pad_posy+8, 16, 40);
                                 local_book.code[0] = user_shelf->code;
                                 local_book.borrowed = '0';
                                 local_book.on_reading = '0';
@@ -1646,6 +1667,7 @@ static int draw_bi_tagging_box(book_entry_t *user_book, int posx, int posy)
     char *label_symbol = " ☘ "; 
     char local_label[(LABEL_NAME_LEN+1)*MAX_LABEL_NUM+1]="";
     char local_tag[LABEL_NAME_LEN+1];
+    char *tsptr;
 
     //外框
     boxwin = subwin(stdscr, PAD_BOXED_HIGHT-5, 27, posx-1, posy-2);
@@ -1664,11 +1686,14 @@ static int draw_bi_tagging_box(book_entry_t *user_book, int posx, int posy)
     do{
         mvwprintw(tagwin, scroll_line, 0, "%s%02d:", label_symbol, nlines+1);
         wrefresh(tagwin);
-        wgetnstr(tagwin, local_tag, LABEL_NAME_LEN);
+        mvwgetnstr(tagwin, scroll_line, 6, local_tag, LABEL_NAME_LEN);
         if(!local_tag[0])break;
+        tsptr = string_filter(local_tag, '?');
         if(get_confirm("确定?", "Yes")){
-            strcat(local_label, local_tag);
+            strcat(local_label, tsptr);
             strcat(local_label, ",");
+            clear_line(tagwin, scroll_line, 6, 1, 20);
+            mvwprintw(tagwin, scroll_line, 6, "%s", tsptr);
             if(++scroll_line > PAD_BOXED_HIGHT-8)scroll_line=PAD_BOXED_HIGHT-8;
             nlines++;
         }else{
