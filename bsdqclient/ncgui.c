@@ -398,8 +398,8 @@ ui_menu_e ncgui_display_buildshelf_page(void)
         (void)get_confirm("它多高?", "Certain");
         curs_set(1);
         while(select_key != KEY_ENTER && select_key != '\n'){
-            mvprintw(df_posx+5, df_posy+1, "共%02d层", nfloors);
-            move(df_posx+5, df_posy+4);
+            mvprintw(df_posx+9, df_posy+2, "共%02d层:", nfloors);
+            move(df_posx+9, df_posy+5);
             refresh();
             select_key = get_choice(page_buildshelf_e, NULL, 0);
             if(select_key == KEY_UP){
@@ -645,7 +645,7 @@ static void show_searchbox_info(book_entry_t *local_book)
 {
     int kb_posx = GREET_ROW+6, kb_posy = 8;
     int str_limit = 38;
-    char str_show[46] = {0};
+    char str_show[64] = {0};
 
     //外借关键字
     if(local_book->borrowed == '1'){
@@ -965,7 +965,7 @@ static void show_shelf_info(int startx, int starty, shelf_entry_t *user_shelf, b
 static int pad_fill_shelves_info(WINDOW **win, slider_t *sld, int *para_logic_row)
 {
     int pad_posx = GREET_ROW+2, pad_posy = 8;
-    char str_show[40] = {0};
+    char str_show[64] = {0};
     int str_limit = 24;
     shelf_entry_t local_shelf;
     int i, nshelves = 0;
@@ -1233,7 +1233,7 @@ static void show_book_info(int startx, int starty, book_entry_t *user_book, int 
     char slabel[MAX_LABEL_NUM/2][38];
     shelf_entry_t local_shelf;
     int str_limit = 22;
-    char str_show[40]={0};
+    char str_show[64]={0};
     int i = 0, j = 0;
 
     clear_line(NULL, startx, starty, PAD_BOXED_HIGHT, PAD_BOXED_WIDTH);
@@ -1508,9 +1508,9 @@ static void show_newbook_info(book_entry_t *user_book)
     int df_posx = GREET_ROW+2, df_posy = 16;
     int df_hight = 16, df_width = 40;
     int str_limit = 30;
-    char str_show[40]={0};
+    char str_show[64]={0};
     char slabel[MAX_LABEL_NUM/2][38];
-    int str_len = 0, j = 0;;
+    int j = 0;
 
     memset(slabel, '\0', sizeof(slabel));
     clear_line(NULL, df_posx, df_posy, df_hight, df_width);
@@ -1524,13 +1524,7 @@ static void show_newbook_info(book_entry_t *user_book)
 
     //显示作者名
     if(*user_book->author){
-        str_len = strlen(user_book->author);
-        if(str_len > str_limit){
-            strncpy(str_show, user_book->author, str_limit);
-            strcat(str_show, "...");
-        }else{
-            strncpy(str_show, user_book->author, str_len);
-        }
+        limit_str_width(user_book->author, str_show, str_limit);
         mvprintw(df_posx+2, df_posy+2, "%s", str_show);
         memset(str_show, '\0', sizeof(str_show));
     }
@@ -1558,7 +1552,7 @@ static int next_page_bookinfo(WINDOW *win, int *shelfno, int *bookno, book_entry
 {
     book_entry_t local_book;
     int nbooks = 0,  str_limit = 17, res;
-    char str_show[40]={0};
+    char str_show[64]={0};
 
     //使用缓存内数据
     clidb_book_search_step(PAD_HIGHT);
