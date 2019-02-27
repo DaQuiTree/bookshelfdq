@@ -107,6 +107,7 @@ static void clear_line(WINDOW *win, int startx, int starty, int nlines, int line
 static int get_confirm(const char *prompt, char *option_default);
 static char *string_filter(char *fstr, char ch_sub);
 static int string_splitter(char *des_str, int des_len, char *src_str, int part_pos, char ch_aim);
+static char *limit_str_width(const char *oldstr, char *newstr, int limit);
 
 //浏览书架相关
 static ui_menu_e display_lookthrough_page(int select_mode);
@@ -120,7 +121,7 @@ static int display_shelfprofile_page(shelf_entry_t *user_shelf);
 static int display_bookinfo_page(shelf_entry_t *user_shelf, int collect_mode, book_entry_t *search_entry);
 static int next_page_bookinfo(WINDOW *win, int *shelfno, int *bookno, book_entry_t *search_entry);
 static void show_book_info(int startx, int starty, book_entry_t *user_book, int bShowShelf);
-static void split_labels(char *label, char rev[][37]);
+static void split_labels(char *label, char rev[][38]);
 static int draw_bi_tagging_box(book_entry_t *user_book, int posx, int posy);
 
 //上架新书相关
@@ -323,8 +324,7 @@ ui_menu_e ncgui_display_searchbook_page(void)
                     if((shelfno = display_lookthrough_page(1)) != NON_SENSE_INT)//用户锁定书架
                         local_book.code[0] = shelfno;
                     draw_searchbook_page_framework(kbwin, local_book.code[0]);
-                    mvprintw(kb_posx+1, kb_posy+1, "%s", keyword);
-                    refresh();
+                    show_searchbox_info(&local_book);
                     move_slider(&kb_slider, 0);
                     break;
                 case sb_option_finish:
@@ -644,8 +644,8 @@ void draw_searchbook_page_framework(WINDOW *win, int shelfno)
 static void show_searchbox_info(book_entry_t *local_book)
 {
     int kb_posx = GREET_ROW+6, kb_posy = 8;
-    int str_limit = 30;
-    char str_show[36] = {0};
+    int str_limit = 38;
+    char str_show[46] = {0};
 
     //外借关键字
     if(local_book->borrowed == '1'){
@@ -662,12 +662,7 @@ static void show_searchbox_info(book_entry_t *local_book)
     }
 
     //检索框显示书名关键字
-    if(strlen(local_book->name)-1 > str_limit){
-        strncpy(str_show, local_book->name+1, str_limit);
-        strcat(str_show, "...");
-    }else{
-        strcpy(str_show, local_book->name+1);
-    }
+    limit_str_width(local_book->name, str_show, str_limit);
     switch(local_book->name[0]){
         case '0':
             break;
@@ -688,15 +683,10 @@ static void show_searchbox_info(book_entry_t *local_book)
             break;
         default: break;
     }
-    memset(str_show, '\0', 36);
+    memset(str_show, '\0', 46);
 
     //作者关键字
-    if(strlen(local_book->author)-1 > str_limit){
-        strncpy(str_show, local_book->author+1, str_limit);
-        strcat(str_show, "...");
-    }else{
-        strcpy(str_show, local_book->author+1);
-    }
+    limit_str_width(local_book->author, str_show, str_limit);
     switch(local_book->author[0]){
         case '0':
             break;
@@ -717,7 +707,7 @@ static void show_searchbox_info(book_entry_t *local_book)
             break;
         default: break;
     }
-    memset(str_show, '\0', 36);
+    memset(str_show, '\0', 46);
 
     //标签关键字
     strcpy(str_show, local_book->label+1);
@@ -976,7 +966,7 @@ static int pad_fill_shelves_info(WINDOW **win, slider_t *sld, int *para_logic_ro
 {
     int pad_posx = GREET_ROW+2, pad_posy = 8;
     char str_show[40] = {0};
-    int str_len = 0, str_limit = 30;
+    int str_limit = 24;
     shelf_entry_t local_shelf;
     int i, nshelves = 0;
 
@@ -987,13 +977,7 @@ static int pad_fill_shelves_info(WINDOW **win, slider_t *sld, int *para_logic_ro
                 error_line(local_shelf.name);
                 return 0;
             }
-            str_len = strlen(local_shelf.name);
-            if(str_len > str_limit){
-                strncpy(str_show, local_shelf.name, str_limit);
-                strcat(str_show, "...");
-            }else{
-                strncpy(str_show, local_shelf.name, str_len);
-            }
+            limit_str_width(local_shelf.name, str_show, str_limit);
             mvwprintw(*win, nshelves++, 0, "%s", str_show);
             memset(str_show, '\0', sizeof(str_show));
         }
@@ -1014,7 +998,7 @@ static int pad_fill_shelves_info(WINDOW **win, slider_t *sld, int *para_logic_ro
     return (1);
 }
 
-static void split_labels(char *label, char rev[][37])
+static void split_labels(char *label, char rev[][38])
 {
     int last_offset = -1, offset = 0;
     int index = 0;
@@ -1025,8 +1009,7 @@ static void split_labels(char *label, char rev[][37])
             index++;
             if(index%2 == 0){
                 strncpy(rev[index/2-1], label+last_offset+1, offset-last_offset);
-                rev[index/2-1][offset-last_offset-1] = ' ';
-                rev[index/2-1][offset-last_offset] = 0;
+                rev[index/2-1][offset-last_offset-1] = '\0';
                 last_offset = offset;
             }
         }
@@ -1034,6 +1017,7 @@ static void split_labels(char *label, char rev[][37])
     }
     strncpy(rev[index/2], label+last_offset+1, offset-last_offset);
 } 
+
 
 //打开书架
 static int display_bookinfo_page(shelf_entry_t *user_shelf, int collect_mode, book_entry_t *search_entry)
@@ -1246,10 +1230,9 @@ static int display_bookinfo_page(shelf_entry_t *user_shelf, int collect_mode, bo
 static void show_book_info(int startx, int starty, book_entry_t *user_book, int bShowShelf)
 { 
     char unique[8];
-    char slabel[MAX_LABEL_NUM/2][2*LABEL_NAME_LEN+1];
+    char slabel[MAX_LABEL_NUM/2][38];
     shelf_entry_t local_shelf;
-    int str_len = 0;
-    int str_limit = 20;
+    int str_limit = 22;
     char str_show[40]={0};
     int i = 0, j = 0;
 
@@ -1274,25 +1257,13 @@ static void show_book_info(int startx, int starty, book_entry_t *user_book, int 
 
     //显示图书信息
     mvwprintw(stdscr, startx+i++, starty, "编号: %s", unique);
-    str_len = strlen(user_book->author);
-    if(str_len > str_limit){
-        strncpy(str_show, user_book->author, str_limit);
-        strcat(str_show, "...");
-    }else{
-        strncpy(str_show, user_book->author, str_len);
-    }
-    mvwprintw(stdscr, startx+i++, starty, "作者: %s",  str_show);
+    limit_str_width(user_book->author, str_show, str_limit);//限制显示宽度
+    mvwprintw(stdscr, startx+i++, starty, "作者: %s", str_show);
     memset(str_show, '\0', 40);
 
     if(bShowShelf){
         clidb_shelf_get(user_book->code[0], &local_shelf);
-        str_len = strlen(local_shelf.name);
-        if(str_len > str_limit){
-            strncpy(str_show, local_shelf.name, str_limit);
-            strcat(str_show, "...");
-        }else{
-            strncpy(str_show, local_shelf.name, str_len);
-        }
+        limit_str_width(user_book->name, str_show, str_limit);//限制显示宽度
         mvwprintw(stdscr, startx+i++, starty, "所属: %s", str_show);
         memset(str_show, '\0', 40);
     }
@@ -1306,7 +1277,8 @@ static void show_book_info(int startx, int starty, book_entry_t *user_book, int 
     i++;
     split_labels(user_book->label, slabel);
     while(slabel[j][0]){
-        mvwprintw(stdscr, startx+i++, starty, "☘  %s", slabel[j]);
+        limit_str_width(slabel[j], str_show, str_limit);
+        mvwprintw(stdscr, startx+i++, starty, "☘  %s", str_show);
         j++;
     }
 
@@ -1537,7 +1509,7 @@ static void show_newbook_info(book_entry_t *user_book)
     int df_hight = 16, df_width = 40;
     int str_limit = 30;
     char str_show[40]={0};
-    char slabel[MAX_LABEL_NUM/2][2*LABEL_NAME_LEN+1];
+    char slabel[MAX_LABEL_NUM/2][38];
     int str_len = 0, j = 0;;
 
     memset(slabel, '\0', sizeof(slabel));
@@ -1545,16 +1517,8 @@ static void show_newbook_info(book_entry_t *user_book)
 
     //显示书名
     if(*user_book->name){
-        str_len = strlen(user_book->name);
-        strcat(str_show, " 《");
-        if(str_len > str_limit){
-            strncpy(str_show+4, user_book->name, str_limit);
-            strcat(str_show, "...》");
-        }else{
-            strncpy(str_show+4, user_book->name, str_len);
-            strcat(str_show, "》");
-        }
-        mvprintw(df_posx, df_posy, "%s", str_show);
+        limit_str_width(user_book->name, str_show, str_limit);
+        mvprintw(df_posx, df_posy, "《%s》", str_show);
         memset(str_show, '\0', sizeof(str_show));
     }
 
@@ -1593,7 +1557,7 @@ static void show_newbook_info(book_entry_t *user_book)
 static int next_page_bookinfo(WINDOW *win, int *shelfno, int *bookno, book_entry_t *search_entry)
 {
     book_entry_t local_book;
-    int nbooks = 0, str_len = 0, str_limit = 18, res;
+    int nbooks = 0,  str_limit = 17, res;
     char str_show[40]={0};
 
     //使用缓存内数据
@@ -1605,16 +1569,8 @@ static int next_page_bookinfo(WINDOW *win, int *shelfno, int *bookno, book_entry
             refresh();
             return(-1);
         }
-        str_len = strlen(local_book.name);
-        strcat(str_show, "《");
-        if(str_len > str_limit){
-            strncpy(str_show+3, local_book.name, str_limit);
-            strcat(str_show, "...》");
-        }else{
-            strncpy(str_show+3, local_book.name, str_len);
-            strcat(str_show, "》");
-        }
-        mvwprintw(win, nbooks++, 0, "%s",  str_show);
+        limit_str_width(local_book.name, str_show, str_limit);
+        mvwprintw(win, nbooks++, 0, "《%s》",  str_show);
         memset(str_show, '\0', sizeof(str_show));
     }
 
@@ -1640,16 +1596,8 @@ static int next_page_bookinfo(WINDOW *win, int *shelfno, int *bookno, book_entry
             refresh();
             return(-1);
         }
-        str_len = strlen(local_book.name);
-        strcat(str_show, "《");
-        if(str_len > str_limit){
-            strncpy(str_show+3, local_book.name, str_limit);
-            strcat(str_show, "...》");
-        }else{
-            strncpy(str_show+3, local_book.name, str_len);
-            strcat(str_show, "》");
-        }
-        mvwprintw(win, nbooks++, 0, "%s",  str_show);
+        limit_str_width(local_book.name, str_show, str_limit);
+        mvwprintw(win, nbooks++, 0, "《%s》", str_show);
         memset(str_show, '\0', sizeof(str_show));
     }
 
@@ -1686,21 +1634,18 @@ static int draw_bi_tagging_box(book_entry_t *user_book, int posx, int posy)
     do{
         mvwprintw(tagwin, scroll_line, 0, "%s%02d:", label_symbol, nlines+1);
         wrefresh(tagwin);
-        mvwgetnstr(tagwin, scroll_line, 6, local_tag, LABEL_NAME_LEN);
+        wgetnstr(tagwin, local_tag, LABEL_NAME_LEN);
         if(!local_tag[0])break;
         tsptr = string_filter(local_tag, '?');
+        if(tsptr[0] == '\0')continue;//为空
         if(get_confirm("确定?", "Yes")){
             strcat(local_label, tsptr);
             strcat(local_label, ",");
-            clear_line(tagwin, scroll_line, 6, 1, 20);
-            mvwprintw(tagwin, scroll_line, 6, "%s", tsptr);
+            printf("%s\n",local_label);
             if(++scroll_line > PAD_BOXED_HIGHT-8)scroll_line=PAD_BOXED_HIGHT-8;
             nlines++;
         }else{
-            if(scroll_line >= PAD_BOXED_HIGHT-8){
-                scroll_line--;
-                clear_line(tagwin, scroll_line, 0, 1, 26);
-            }
+            if(scroll_line >= PAD_BOXED_HIGHT-8)scroll_line--;
             clear_line(tagwin, scroll_line, 0, 1, 26);
         }
     }while(nlines < 10);
@@ -2039,3 +1984,55 @@ static void clear_line(WINDOW* win, int startx, int starty, int nlines, int line
     wrefresh(win);
 }
 
+static char *limit_str_width(const char *oldstr, char *newstr, int limit)
+{
+    const char *sptr;
+    int width = 0;
+    int flag_stop = 0;
+
+    sptr = oldstr;
+    while(*sptr != '\0' && flag_stop == 0)
+    {
+        if((*sptr & 0x80) == 0){
+            if(++width > limit){
+                flag_stop = 1;
+                break;
+            }
+            sptr++;
+        }else{
+            switch(*sptr & 0xF0)
+            {
+                case 0xC0:
+                    width += 2;
+                    if(width > limit){
+                        flag_stop = 1;
+                        break;
+                    }
+                    sptr += 2;
+                    break;
+                case 0xE0:
+                    width += 2;
+                    if(width > limit){
+                        flag_stop = 1;
+                        break;
+                    }
+                    sptr += 3;
+                    break;
+                case 0xF0:
+                    width += 2;
+                    if(width > limit){
+                        flag_stop = 1;
+                        break;
+                    }
+                    sptr += 4;
+                    break;
+                default: break;
+            }
+        }   
+    }
+
+    strncpy(newstr, oldstr, sptr-oldstr);
+    newstr[sptr-oldstr] = '\0';
+    if(flag_stop)strcat(newstr, "...");
+    return(newstr);
+} 

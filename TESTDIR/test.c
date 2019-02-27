@@ -6,30 +6,73 @@
 #include <sys/types.h>
 #include <fcntl.h>
 
-typedef union{
-    char a;
-    int b;
-}love_un;
+static char *limit_str_width(const char *ostr, char *newstr, int limit);
 
 int main()
 {
-    love_un c;
-    char str[16]="";
-    int a = -32760;
-    int result; 
+    int cpy;
+    char str[128];
 
-    c.b = 10;
-    printf("%d\n",c.b);
-    c.a = 'c';
-    //printf("%c\n", c.a);
-    //printf("%d %d\n", a, -a);
-    //printf("%d %d\n",str, &str);
-    if(!access("bsdq_cache", F_OK)){
-        printf("exist!\n");
-    }else{
-        mkdir("bsdq_cache", 0777);
-        printf("%d\n", result);
+    char *a = "0123456789012345678901234567890123456789";
+    char *b = "张振奎爱小麦呀真的哦我从来";
+    char *c = "abc我爱你cdefg我的1111111111我是我贺我是地";
+    char *d = "；：‘’‘’‘’‘’‘’‘’‘’！！！！！！？～。，《》";
+
+    printf("%s\n", limit_str_width(a, str, 23));
+    printf("%s\n", limit_str_width(b, str, 23));
+    printf("%s\n", limit_str_width(c, str, 23));
+    printf("%s\n", limit_str_width(d, str, 23));
+}
+
+static char *limit_str_width(const char *oldstr, char *newstr, int limit)
+{
+    const char *sptr;
+    int width = 0;
+    int flag_stop = 0;
+
+    sptr = oldstr;
+    while(*sptr != '\0' && flag_stop == 0)
+    {
+        if((*sptr & 0x80) == 0){
+            if(++width > limit){
+                flag_stop = 1;
+                break;
+            }
+            sptr++;
+        }else{
+            switch(*sptr & 0xF0)
+            {
+                case 0xC0:
+                    width += 2;
+                    if(width > limit){
+                        flag_stop = 1;
+                        break;
+                    }
+                    sptr += 2;
+                    break;
+                case 0xE0:
+                    width += 2;
+                    if(width > limit){
+                        flag_stop = 1;
+                        break;
+                    }
+                    sptr += 3;
+                    break;
+                case 0xF0:
+                    width += 2;
+                    if(width > limit){
+                        flag_stop = 1;
+                        break;
+                    }
+                    sptr += 4;
+                    break;
+                default: break;
+            }
+        }   
     }
 
-    printf("%d\n", sizeof(void *));
+    strncpy(newstr, oldstr, sptr-oldstr);
+    newstr[sptr-oldstr] = '\0';
+    if(flag_stop)strcat(newstr, "...");
+    return(newstr);
 }
