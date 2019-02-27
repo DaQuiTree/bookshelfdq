@@ -78,7 +78,7 @@ typedef struct{
     trans_stuff_un      stuff;
     server_response_e   response;
     char                error_text[ERR_TEXT_LEN+1];
-    void*               extra_info[EXTRA_INFO_SIZ];
+    int                 extra_info[EXTRA_INFO_SIZ];
 }message_cs_t; 
 
 

@@ -145,7 +145,6 @@ int socket_srv_fetch_client(void)
 int socket_srv_process_request(int client_fd)
 {
     int nread, nwrite, nrows, res;
-    unsigned long ulnrows;
     message_cs_t msg;
     int msg_size = sizeof(msg);
 
@@ -203,8 +202,7 @@ int socket_srv_process_request(int client_fd)
                 msg.response = r_failed;
                 break;
             } 
-            ulnrows = nrows;
-            msg.extra_info[0] = (void *)ulnrows;
+            msg.extra_info[0] = nrows;
             while((res = srvdb_book_fetch_result(&msg)) != FETCH_RESULT_ERR){
                 if(res == FETCH_RESULT_END){
                     msg.response = r_find_end; //查询结束
@@ -242,8 +240,7 @@ int socket_srv_process_request(int client_fd)
                 msg.response = r_failed;
                 break;
             }
-            ulnrows = nrows;
-            msg.extra_info[0] = (void *)ulnrows;
+            msg.extra_info[0] = nrows;
             while((res = srvdb_shelf_fetch_result(&msg)) != FETCH_RESULT_ERR){
                 if(res == FETCH_RESULT_END){
                     msg.response = r_find_end; //查询结束

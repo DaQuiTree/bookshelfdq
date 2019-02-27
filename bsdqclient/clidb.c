@@ -199,7 +199,7 @@ static int clidb_shelf_real_insert(shelf_entry_t *user_shelf, int mode)
 #endif
         return(0);
     }
-    
+
     //更新记录
     if(mode == SHELF_SYNC_MODE){
         SHELF_RECORD_SYNC(user_shelf->code);

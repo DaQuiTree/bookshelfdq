@@ -472,7 +472,7 @@ int client_searching_book(int bookno, book_entry_t *search_entry)
 
     if(bookno == BREAK_LIMIT_INT){
         new_mark ^= 1;
-        sprintf(search_entry->encoding_time, "%d 检索到: %ld 册", new_mark, (unsigned long)msg.extra_info[0]);
+        sprintf(search_entry->encoding_time, "%d 检索到: %d 册", new_mark, msg.extra_info[0]);
     }
 
     return(res);
@@ -501,7 +501,6 @@ int client_build_shelf(shelf_entry_t *user_shelf, char *errInfo)
         (void)clidb_shelf_insert(&msg.stuff.shelf);
     else
         strcpy(errInfo, msg.error_text);
-
     return(res);
 }
 

@@ -44,5 +44,5 @@ testshell: testshell.o clishell.o clidb.o ncgui.o ../bsdqserver/socketcom.o ../b
 .PHONY += clean
 
 clean: 
-	rm -rf *.o bsdq_server bsdq_client srvdbmain test_clidb testshell
+	rm -rf *.o bsdq_cache bsdq_server bsdq_client srvdbmain test_clidb testshell
 

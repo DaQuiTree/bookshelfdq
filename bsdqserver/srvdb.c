@@ -182,6 +182,7 @@ int srvdb_book_insert(message_cs_t *msg)
                     sprintf(msg->error_text, "上架失败:图书数量达到上限");
                     return(0);
                 }
+               msg->stuff.book.code[2] = bookno_used;
             }
         }else{
 #if DEBUG_TRACE
@@ -189,6 +190,7 @@ int srvdb_book_insert(message_cs_t *msg)
 #endif
             //书籍表为空
             bookno_used = 0; 
+            msg->stuff.book.code[2] = bookno_used;
         }
     }else{
 #if DEBUG_TRACE
@@ -206,6 +208,7 @@ int srvdb_book_insert(message_cs_t *msg)
 #if DEBUG_TRACE
         fprintf(stderr, "INSERT INTO book error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
 #endif
+    sprintf(msg->error_text, "上架图书失败...");
     return(0);
 }
 
@@ -620,12 +623,14 @@ int srvdb_shelf_build(message_cs_t *msg)
                     sprintf(msg->error_text, "打造失败:书架达到上限");
                     return(0);
                 }
+                msg->stuff.shelf.code = shelfno_used;
             }
         }else{
 #if DEBUG_TRACE
             fprintf(stderr, "SELECT MAX(shelfno)error: get_simple_result()\n");
 #endif
             shelfno_used = 0;
+            msg->stuff.shelf.code = shelfno_used;
         }
     }else{
 #if DEBUG_TRACE
@@ -642,6 +647,7 @@ int srvdb_shelf_build(message_cs_t *msg)
 #if DEBUG_TRACE
         fprintf(stderr, "INSERT INTO shelf error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
 #endif
+    sprintf(msg->error_text, "打造书架失败");
     return(0);
 }
 
