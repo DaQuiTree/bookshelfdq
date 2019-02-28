@@ -1,6 +1,8 @@
 #ifndef _CLISRV_H_
 #define _CLISRV_H_
 
+#include "libbcrypt/bcrypt.h"
+
 //书相关定义
 #define MAX_BOOK_NUM (10000)
 #define BOOK_NAME_LEN (64*3) //UTF-8中文占用3个字节 
@@ -43,6 +45,19 @@ typedef struct{
     int shelves_all;
 }shelf_count_t;
 
+
+//密码系统相关
+#define MAX_USER_NUM (16)
+#define BCRYPT_WORK_FACTOR (12)
+#define SALT_LENGTH (30)
+
+typedef struct{
+    char name[BCRYPT_HASHSIZE + 1];	
+    char password[BCRYPT_HASHSIZE + 1];
+}account_entry_t;
+
+
+
 //socket通讯相关
 #define USER_NAME_LEN (64) 
 #define ERR_TEXT_LEN (80)
@@ -51,6 +66,7 @@ typedef struct{
 typedef union{
     shelf_entry_t shelf;
     book_entry_t book;
+    account_entry_t account;
 }trans_stuff_un;
 
 typedef enum{
@@ -62,7 +78,10 @@ typedef enum{
     req_build_shelf_e,
     req_remove_shelf_e,
     req_find_shelf_e,
-    req_count_shelf_e
+    req_count_shelf_e,
+    req_verify_account_e,
+    req_register_account_e,
+    req_login_account_e
 }client_request_e;
 
 typedef enum{
@@ -96,7 +115,6 @@ typedef struct{
 #define FETCH_RESULT_END_MORE (2)
 #define FETCH_RESULT_CONT (1)
 #define FETCH_RESULT_ERR (0)
-
 
 //全局定义
 #define BOOK_AVL (0)

@@ -1,4 +1,4 @@
-all:  srvdbmain #bsdq_server #bsdq_client
+all: bsdq_server  #srvdbmain #bsdq_client
 
 CC = gcc
 CFLAGS = -Wall -pedantic
@@ -14,7 +14,7 @@ MYSQL_LIB_FILE = -lmysqlclient
 srvdbmain: srvdb.o srvdbmain.o libbcrypt/bcrypt.a 
 	$(CC) $(CFLAGS) $(DFLAGS) -o srvdbmain -I$(MYSQL_INC_PATH) srvdbmain.o srvdb.o libbcrypt/bcrypt.a $(MYSQL_LIB_FILE) -L$(MYSQL_LIB_PATH)
 bsdq_server: bsdq_server.o socketcom.o srvdb.o
-	$(CC) $(CFLAGS) $(DFLAGS) -o bsdq_server -I$(MYSQL_INC_PATH) srvdb.o socketcom.o bsdq_server.o $(MYSQL_LIB_FILE) -L$(MYSQL_LIB_PATH)
+	$(CC) $(CFLAGS) $(DFLAGS) -o bsdq_server -I$(MYSQL_INC_PATH) srvdb.o socketcom.o bsdq_server.o libbcrypt/bcrypt.a $(MYSQL_LIB_FILE) -L$(MYSQL_LIB_PATH)
 bsdq_client: bsdq_client.o socketcom.o srvdb.o
 	$(CC) $(CFLAGS) $(DFLAGS) -o bsdq_client -I$(MYSQL_INC_PATH) srvdb.o socketcom.o bsdq_client.o $(MYSQL_LIB_FILE) -L$(MYSQL_LIB_PATH)
 

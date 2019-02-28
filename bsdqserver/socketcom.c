@@ -268,6 +268,15 @@ int socket_srv_process_request(int client_fd)
         case req_count_shelf_e:
             if(!srvdb_shelf_count(&msg))msg.response = r_failed;
             break;
+        case req_verify_account_e:
+            if(!srvdb_account_verify(&msg))msg.response = r_failed;
+            break;
+        case req_register_account_e:
+            if(!srvdb_account_register(&msg))msg.response = r_failed;
+            break;
+        case req_login_account_e:
+            if(!srvdb_user_archive_init(msg.user))msg.response = r_failed;
+            break;
         default:
             msg.response = r_failed;
             strcpy(msg.error_text, "Undefined request type.");

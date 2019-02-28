@@ -9,11 +9,11 @@ void show_result(void);
 int main()
 {
     int res;
+    int i;
 //    unsigned char depth[MAX_FLOORS] = {2,3,2,1}; 
     message_cs_t msg;
 
     strcpy(msg.user, "admin");
-    strcpy(msg.stuff.account.name, "DaQuiTr.&*5ei#$^e1");
     strcpy(msg.stuff.account.password, "ice0tree");
 
     res = srvdb_init();
@@ -25,12 +25,13 @@ int main()
     res = srvdb_accounts_table_init();
     if(!res)return(EXIT_FAILURE);
     printf("accounts init successed\n");
-    res = srvdb_account_register(&msg);
-    if(!res){
-        printf("%s\n", msg.error_text);
-        return(EXIT_FAILURE);
+    for(i = 1; i < 20; i++){
+        sprintf(msg.stuff.account.name, "daqui%02d", i);
+        res = srvdb_account_register(&msg);
+        if(!res)printf("%d %s\n", i, msg.error_text);
+            //return(EXIT_FAILURE);
     }
-    printf("accounts register successed\n");
+    //printf("accounts register successed\n");
     /*res = srvdb_account_verify(&msg);*/
     /*if(res == VERIFY_PASSWORD_ERR)*/
         /*return(EXIT_FAILURE);*/

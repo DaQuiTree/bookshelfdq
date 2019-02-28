@@ -869,7 +869,7 @@ int srvdb_account_verify(message_cs_t *msg)
 #if DEBUG_TRACE
         fprintf(stderr, "Verify account error: msg user undefined.\n");
 #endif
-        return(VERIFY_PASSWORD_ERR);
+        return(0);
     }
 
     //保护字符串中的特殊字符
@@ -883,13 +883,13 @@ int srvdb_account_verify(message_cs_t *msg)
 #if DEBUG_TRACE
             fprintf(stderr, "Verify account error: get_simple_result()\n");
 #endif
-            return(VERIFY_PASSWORD_ERR);
+            return(0);
         }
     }else{
 #if DEBUG_TRACE
         fprintf(stderr, "Verify account error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
 #endif
-        return(VERIFY_PASSWORD_ERR);
+        return(0);
     }
 
     //验证hash
@@ -899,12 +899,14 @@ int srvdb_account_verify(message_cs_t *msg)
 #if DEBUG_TRACE
         fprintf(stderr, "Verify account error: checkpw error.\n");
 #endif
-        return(VERIFY_PASSWORD_ERR);
+        return(0);
     }
     //验证成功
-    if(res == 0)return(VERIFY_PASSWORD_MATCH);
+    if(res == 0)return(1);
+
     //验证失败
-    return(VERIFY_PASSWORD_NOT_MATCH);
+    sprintf(msg->error_text, "密码错误");
+    return(0);
 }
 
 int srvdb_account_register(message_cs_t *msg)
@@ -1003,7 +1005,5 @@ int srvdb_account_register(message_cs_t *msg)
 #if DEBUG_TRACE
         fprintf(stderr, "Create account error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
 #endif
-    sprintf(msg->error_text, "创建账户失败");
-
     return(0);
 }

@@ -21,8 +21,8 @@ int main()
         exit(EXIT_FAILURE);
     }
 
-    if(!srvdb_user_archive_init("daqui")){
-        fprintf(stderr, "user archive init error.\n");
+    if(!srvdb_accounts_table_init()){
+        fprintf(stderr, "server init accounts table error.\n");
         exit(EXIT_FAILURE);
     }
 

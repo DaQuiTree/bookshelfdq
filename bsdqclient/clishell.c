@@ -257,6 +257,7 @@ int client_shelf_insert_book(book_entry_t *user_book, char *errInfo)
     struct tm *tm_ptr;
     time_t the_time;
 
+    memset(&msg, '\0', sizeof(message_cs_t));
     //信息不完整
     if((user_book->name[0] && user_book->author[0] && user_book->code[1]) == 0)return 0;
 
@@ -282,6 +283,7 @@ int client_shelf_loading_book(int shelfno, int bookno)
 {
     message_cs_t msg;
 
+    memset(&msg, '\0', sizeof(message_cs_t));
     strcpy(msg.user, login_user);
     msg.request = req_find_book_e;
 
@@ -307,6 +309,7 @@ int client_shelf_delete_book(book_entry_t *user_book, int dbm_pos)
     message_cs_t msg;
     int res;
 
+    memset(&msg, '\0', sizeof(message_cs_t));
     strcpy(msg.user, login_user);
     msg.request = req_delete_book_e;
     msg.stuff.book.code[0] = NON_SENSE_INT;
@@ -327,6 +330,7 @@ int client_shelf_collecting_book(int shelfno, book_entry_t *user_book, int dbm_p
     message_cs_t msg;
     int res;
 
+    memset(&msg, '\0', sizeof(message_cs_t));
     strcpy(msg.user, login_user);
     msg.request = req_update_book_e;
     msg.stuff.book = *user_book;
@@ -345,6 +349,7 @@ int client_shelf_tagging_book(int shelfno, book_entry_t *user_book, int dbm_pos)
     message_cs_t msg;
     int res;
 
+    memset(&msg, '\0', sizeof(message_cs_t));
     strcpy(msg.user, login_user);
     msg.request = req_update_book_e;
     msg.stuff.book = *user_book;
@@ -361,6 +366,7 @@ int client_shelf_count_book(int shelfno, book_count_t *user_bc)
     message_cs_t msg;
     int res = 0;
 
+    memset(&msg, '\0', sizeof(message_cs_t));
     strcpy(msg.user, login_user);
     msg.stuff.book.code[0] = shelfno;
     msg.stuff.book.code[1] = NON_SENSE_INT;
@@ -379,6 +385,7 @@ int client_shelf_moving_book(int shelfno, book_entry_t *user_book, int dbm_pos, 
     message_cs_t msg;
     int res, ret = 0;
 
+    memset(&msg, '\0', sizeof(message_cs_t));
     strcpy(msg.user, login_user);
     msg.request = req_update_book_e;
     msg.stuff.book = *user_book;
@@ -413,9 +420,9 @@ int client_shelf_abandon_books(int shelfno)
     message_cs_t msg;
     int res;
 
+    memset(&msg, '\0', sizeof(message_cs_t));
     strcpy(msg.user, login_user);
     msg.request = req_delete_book_e;
-    memset(&msg.stuff.book, '\0', sizeof(book_entry_t));
     msg.stuff.book.code[0] = shelfno;
     msg.stuff.book.code[2] = NON_SENSE_INT;
     res = find_from_server(&msg);
@@ -428,6 +435,7 @@ int client_shelf_unsorted_books(int shelfno)
     message_cs_t msg;
     int res;
 
+    memset(&msg, '\0', sizeof(message_cs_t));
     strcpy(msg.user, login_user);
     msg.request = req_update_book_e;
     memset(&msg.stuff.book, '\0', sizeof(book_entry_t));
@@ -443,6 +451,7 @@ int client_shelf_delete_itself(int shelfno)
     message_cs_t msg;
     int res;
 
+    memset(&msg, '\0', sizeof(message_cs_t));
     strcpy(msg.user, login_user);
     msg.request = req_remove_shelf_e;
     memset(&msg.stuff.shelf, '\0', sizeof(shelf_entry_t));
@@ -461,6 +470,7 @@ int client_searching_book(int bookno, book_entry_t *search_entry)
     message_cs_t msg;
     int res;
 
+    memset(&msg, '\0', sizeof(message_cs_t));
     strcpy(msg.user, login_user);
     msg.request = req_find_book_e;
 
@@ -485,6 +495,7 @@ int client_build_shelf(shelf_entry_t *user_shelf, char *errInfo)
     struct tm *tm_ptr;
     time_t the_time;
 
+    memset(&msg, '\0', sizeof(message_cs_t));
     strcpy(msg.user, login_user);
     msg.request = req_build_shelf_e;
     msg.stuff.shelf = *user_shelf;
@@ -502,6 +513,43 @@ int client_build_shelf(shelf_entry_t *user_shelf, char *errInfo)
     else
         strcpy(errInfo, msg.error_text);
     return(res);
+}
+
+int client_register_account(account_entry_t *user_account)
+{
+    message_cs_t msg;
+
+    memset(&msg, '\0', sizeof(message_cs_t));
+    strcpy(msg.user, login_user);
+    msg.request = req_register_account_e;
+    msg.stuff.account = *user_account;
+
+    return(find_from_server(&msg));
+}
+
+int client_verify_account(account_entry_t *user_account)
+{
+    message_cs_t msg;
+
+    memset(&msg, '\0', sizeof(message_cs_t));
+    strcpy(msg.user, login_user);
+    msg.request = req_verify_account_e;
+    msg.stuff.account = *user_account;
+
+    return(find_from_server(&msg));
+
+}
+
+int client_login_account(account_entry_t *user_account)
+{
+    message_cs_t msg;
+
+    memset(&msg, '\0', sizeof(message_cs_t));
+    strcpy(msg.user, login_user);
+    msg.request = req_login_account_e;
+
+    return(find_from_server(&msg));
+
 }
 
 static int find_from_server(message_cs_t *msg)

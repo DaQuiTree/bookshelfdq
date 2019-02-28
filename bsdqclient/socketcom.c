@@ -165,10 +165,10 @@ int socket_srv_process_request(int client_fd)
             return 0;
         }else{
 #if DEBUG_TRACE
-            fprintf(stderr, "socket_srv_process_request() read error: Server recieved incorrect num of message.\n");
+            fprintf(stderr, "socket_srv_process_request() read error: Server recieved incorrect num(%d) of message.\n", nread);
 #endif
             msg.response = r_failed;
-            strcpy(msg.error_text, "Server recieved incorrect num of message.");
+            strcpy(msg.error_text, "Server recieved incorrect num(%d) of message.");
             nwrite = write(client_fd, &msg, msg_size);
             if (nwrite < 0){
 #if DEBUG_TRACE
@@ -267,6 +267,15 @@ int socket_srv_process_request(int client_fd)
             return(0);
         case req_count_shelf_e:
             if(!srvdb_shelf_count(&msg))msg.response = r_failed;
+            break;
+        case req_verify_account_e:
+            if(!srvdb_account_verify(&msg))msg.response = r_failed;
+            break;
+        case req_register_account_e:
+            if(!srvdb_account_register(&msg))msg.response = r_failed;
+            break;
+        case req_login_account_e:
+            if(!srvdb_user_archive_init(msg.user))msg.response = r_failed;
             break;
         default:
             msg.response = r_failed;

@@ -81,6 +81,7 @@ typedef enum{
     req_count_shelf_e,
     req_verify_account_e,
     req_register_account_e,
+    req_login_account_e
 }client_request_e;
 
 typedef enum{
@@ -114,10 +115,6 @@ typedef struct{
 #define FETCH_RESULT_END_MORE (2)
 #define FETCH_RESULT_CONT (1)
 #define FETCH_RESULT_ERR (0)
-
-#define VERIFY_PASSWORD_MATCH (2)
-#define VERIFY_PASSWORD_NOT_MATCH (1)
-#define VERIFY_PASSWORD_ERR (0) 
 
 //全局定义
 #define BOOK_AVL (0)

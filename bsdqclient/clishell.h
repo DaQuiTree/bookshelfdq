@@ -27,4 +27,9 @@ int client_shelf_abandon_books(int shelfno);
 int client_shelf_unsorted_books(int shelfno);
 int client_shelf_delete_itself(int shelfno);
 
+//账户操作
+int client_register_account(account_entry_t *user_account);
+int client_verify_account(account_entry_t *user_account);
+int client_login_account(account_entry_t *user_account);
+
 #endif
