@@ -5,6 +5,7 @@
 
 int srvdb_init(void);
 int srvdb_connect(const char* hostname, unsigned int port);
+int srvdb_accounts_table_init(void);
 int srvdb_user_archive_init(const char* username);
 
 int srvdb_book_insert(message_cs_t *msg);
@@ -20,6 +21,9 @@ int srvdb_shelf_update(message_cs_t *msg);
 int srvdb_shelf_find(message_cs_t *msg, int *num_rows);
 int srvdb_shelf_fetch_result(message_cs_t *msg);
 int srvdb_shelf_count(message_cs_t *msg);
+
+int srvdb_account_verify(message_cs_t *msg);
+int srvdb_account_register(message_cs_t *msg);
 
 //检索相关的通用函数
 void srvdb_free_result(void);

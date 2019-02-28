@@ -16,11 +16,12 @@ static int res_rows = 0;
 static const char *my_user = "bsdq";
 static const char *my_passwd = "bsdq";
 static const char *my_bsdq_db = "bsdq_db";
+static const char *my_bsdq_accounts = "bsdq_accounts";
 
 static int get_simple_result(MYSQL *conn, char* res_str) 
 {
     MYSQL_RES *result_ptr;
-    MYSQL_ROW sqlrow;
+    MYSQL_ROW sqlrow; 
 
     result_ptr = mysql_use_result(conn);
     if (result_ptr){
@@ -66,6 +67,28 @@ int srvdb_connect(const char* hostname, unsigned int port)
         fprintf(stderr, "mysql set utf8 error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
 #endif
     }
+    return(1);
+}
+
+int srvdb_accounts_table_init(void)
+{
+    char qs[1024];
+    int result;
+
+    sprintf(qs, "CREATE TABLE IF NOT EXISTS %s(\
+                userno INT NOT NULL AUTO_INCREMENT,\
+                name VARCHAR(200) NOT NULL,\
+                password VARCHAR(200) NOT NULL,\
+                type VARCHAR(20) NOT NULL,\
+                PRIMARY KEY (userno, name))", my_bsdq_accounts);
+    result = mysql_query(&my_connection, qs);
+    if (result){
+#if DEBUG_TRACE
+        sprintf("init table:%s error %d: %s\n", my_bsdq_accounts, mysql_errno(&my_connection), mysql_error(&my_connection));
+#endif
+        return(0);
+    }
+
     return(1);
 }
 
@@ -118,12 +141,12 @@ int srvdb_user_archive_init(const char* username)
 int srvdb_book_insert(message_cs_t *msg)
 {
     char table_name[128];
-    char es_name[BOOK_NAME_LEN+1];
-    char es_author[AUTHOR_NAME_LEN+1];
-    char es_label[MAX_LABEL_NUM*(LABEL_NAME_LEN+1)+1];
+    char es_name[BOOK_NAME_LEN*2+1];
+    char es_author[AUTHOR_NAME_LEN*2+1];
+    char es_label[(MAX_LABEL_NUM*(LABEL_NAME_LEN+1))*2+1];
     char is[1024];
     char temp_str[512];
-    int res, bookno_used, shelfno_save, floorno_save;
+    int res, bookno_used = 0, shelfno_save, floorno_save;
 
     if (msg->user[0] == '\0'){
 #if DEBUG_TRACE
@@ -247,9 +270,9 @@ int srvdb_book_delete(message_cs_t *msg)
 int srvdb_book_update(message_cs_t *msg)
 {
     char table_name[128];
-    char es_name[BOOK_NAME_LEN+1];
-    char es_author[AUTHOR_NAME_LEN+1];
-    char es_label[MAX_LABEL_NUM*(LABEL_NAME_LEN+1)+1];
+    char es_name[BOOK_NAME_LEN*2+1];
+    char es_author[AUTHOR_NAME_LEN*2+1];
+    char es_label[(MAX_LABEL_NUM*(LABEL_NAME_LEN+1))*2+1];
     char is[1024];
     int  res, shelfno_save, floorno_save, bookno_update;
 
@@ -299,10 +322,10 @@ int srvdb_book_find(message_cs_t *msg, int *num_rows)
     char table_name[128];
     char is[1024];
     int shelfno_save, floorno_save, bookno_start, flag_autofree_result = 0;
-    char es_name_sql[BOOK_NAME_LEN+32+1]="";
-    char es_author_sql[AUTHOR_NAME_LEN+32+1]="";
-    char es_label_sql[MAX_LABEL_NUM*(LABEL_NAME_LEN+1)+32+1]="";
-    char es_temp[BOOK_NAME_LEN+1];
+    char es_name_sql[BOOK_NAME_LEN*2+32+1]="";
+    char es_author_sql[AUTHOR_NAME_LEN*2+32+1]="";
+    char es_label_sql[(MAX_LABEL_NUM*(LABEL_NAME_LEN+1))*2+32+1]="";
+    char es_temp[BOOK_NAME_LEN*2+1];
     char floor_sql[32]="";
 
     if (msg->user[0] == '\0'){
@@ -558,11 +581,11 @@ int srvdb_book_count(message_cs_t *msg)
 int srvdb_shelf_build(message_cs_t *msg)
 {
     char table_name[128];
-    char es_name[SHELF_NAME_LEN+1];
+    char es_name[SHELF_NAME_LEN*2+1];
     char floor_depth_str[MAX_FLOORS*2+1];
     char is[1024];
     char temp_str[512];
-    int res, shelfno_used, i = 0;
+    int res, shelfno_used = 0, i = 0;
 
     if (msg->user[0] == '\0'){
 #if DEBUG_TRACE
@@ -687,7 +710,7 @@ int srvdb_shelf_remove(message_cs_t *msg)
 int srvdb_shelf_update(message_cs_t *msg)
 {
     char table_name[128];
-    char es_name[BOOK_NAME_LEN+1];
+    char es_name[BOOK_NAME_LEN*2+1];
     char is[1024];
     char floor_depth_str[MAX_FLOORS*2+1];
     int  res, i, shelfno_update;
@@ -828,4 +851,159 @@ int srvdb_shelf_count(message_cs_t *msg)
 
     *(shelf_count_t *)&msg->extra_info = sc;
     return(1);
+}
+
+
+//
+// 以下是关于账户的MYSQL封装
+//
+
+int srvdb_account_verify(message_cs_t *msg)
+{
+    char es_name[BCRYPT_HASHSIZE*2 + 1];
+    char db_hash_pw[BCRYPT_HASHSIZE+1];
+    char is[1024];
+    int res;
+
+    if (msg->user[0] == '\0'){
+#if DEBUG_TRACE
+        fprintf(stderr, "Verify account error: msg user undefined.\n");
+#endif
+        return(VERIFY_PASSWORD_ERR);
+    }
+
+    //保护字符串中的特殊字符
+    mysql_escape_string(es_name, msg->stuff.account.name, strlen(msg->stuff.account.name));
+
+    //从db获取hash
+    sprintf(is, "SELECT password FROM %s where name='%s'", my_bsdq_accounts, es_name);
+    res = mysql_query(&my_connection, is);
+    if(!res) {
+        if(!get_simple_result(&my_connection, db_hash_pw)){
+#if DEBUG_TRACE
+            fprintf(stderr, "Verify account error: get_simple_result()\n");
+#endif
+            return(VERIFY_PASSWORD_ERR);
+        }
+    }else{
+#if DEBUG_TRACE
+        fprintf(stderr, "Verify account error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
+#endif
+        return(VERIFY_PASSWORD_ERR);
+    }
+
+    //验证hash
+    res = bcrypt_checkpw(msg->stuff.account.password, db_hash_pw);
+
+    if(res == -1){
+#if DEBUG_TRACE
+        fprintf(stderr, "Verify account error: checkpw error.\n");
+#endif
+        return(VERIFY_PASSWORD_ERR);
+    }
+    //验证成功
+    if(res == 0)return(VERIFY_PASSWORD_MATCH);
+    //验证失败
+    return(VERIFY_PASSWORD_NOT_MATCH);
+}
+
+int srvdb_account_register(message_cs_t *msg)
+{
+    char es_name[BCRYPT_HASHSIZE*2 + 1];
+    char es_password[BCRYPT_HASHSIZE*2 + 1];
+    char hash_pw[BCRYPT_HASHSIZE];
+    char salt[BCRYPT_HASHSIZE];
+    char temp_str[512];
+    char is[1024];
+    int res, user_count;
+
+    if (msg->user[0] == '\0'){
+#if DEBUG_TRACE
+        fprintf(stderr, "register account error: msg user undefined.\n");
+#endif
+        return(0);
+    }
+
+    //查询用户数
+    sprintf(is, "SELECT COUNT(1) FROM %s", my_bsdq_accounts);
+    res = mysql_query(&my_connection, is);
+    if(!res) {
+        if(get_simple_result(&my_connection, temp_str)){
+            if(temp_str[0] != '\0'){
+                sscanf(temp_str, "%d", &user_count);
+                if(user_count >= MAX_USER_NUM){
+                    sprintf(msg->error_text, "创建账户失败:用户数达到上限");
+                    return(0);
+                }
+            }
+        }else{
+#if DEBUG_TRACE
+            fprintf(stderr, "Register account error: count users error when calling get_simple_result()\n");
+#endif
+            return(0);
+        }
+    }else{
+#if DEBUG_TRACE
+        fprintf(stderr, "SELECT COUNT(1) count users error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
+#endif
+        return(0);
+    }
+         
+    //保护字符串中的特殊字符
+    mysql_escape_string(es_name, msg->stuff.account.name, strlen(msg->stuff.account.name));
+
+    //用户名已存在?
+    sprintf(is, "SELECT count(1) FROM %s where name='%s'", my_bsdq_accounts, es_name);
+    res = mysql_query(&my_connection, is);
+    if(!res) {
+        if(get_simple_result(&my_connection, temp_str)){
+            if(temp_str[0] != '\0'){
+                sscanf(temp_str, "%d", &user_count);
+                if(user_count != 0){
+                    sprintf(msg->error_text, "创建账户失败:用户已存在");
+                    return(0);
+                }
+            }
+        }else{
+#if DEBUG_TRACE
+            fprintf(stderr, "Register account error: duplicate checking error when calling get_simple_result()\n");
+#endif
+            return(0);
+        }
+    }else{
+#if DEBUG_TRACE
+        fprintf(stderr, "SELECT COUNT(1) duplicate checking error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
+#endif
+        return(0);
+    }
+
+    //产生hash
+    res = bcrypt_gensalt(BCRYPT_WORK_FACTOR, salt);
+    if(res != 0){
+#if DEBUG_TRACE
+        fprintf(stderr, "register account error: generate salt error.\n");
+#endif
+        return(0);
+    }
+
+    res = bcrypt_hashpw(msg->stuff.account.password, salt, hash_pw);
+    if(res != 0){
+#if DEBUG_TRACE
+        fprintf(stderr, "register account error: hash password error.\n");
+#endif
+        return(0);
+    }
+
+    //保护字符串中的特殊字符
+    mysql_escape_string(es_password, hash_pw, strlen(hash_pw));
+
+    sprintf(is, "INSERT INTO %s(name, password, type) VALUES('%s', '%s', 'user')", my_bsdq_accounts, es_name, es_password);
+    res = mysql_query(&my_connection, is);
+    if(!res)return(1);
+#if DEBUG_TRACE
+        fprintf(stderr, "Create account error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
+#endif
+    sprintf(msg->error_text, "创建账户失败");
+
+    return(0);
 }
