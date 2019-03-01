@@ -8,12 +8,10 @@ void show_result(void);
 
 int main()
 {
-    int res, rows;
-//    unsigned char depth[MAX_FLOORS] = {2,3,2,1}; 
+    int res;
     message_cs_t msg;
+    int i = 0;
 
-    strcpy(msg.user, "daqui");
-    msg.stuff.shelf.code = NON_SENSE_INT;
 
     res = srvdb_init();
     if(!res)return(EXIT_FAILURE);
@@ -21,13 +19,34 @@ int main()
     res = srvdb_connect("127.0.0.1", 0);
     if(!res)return(EXIT_FAILURE);
     printf("connect successed\n");
-    res = srvdb_user_archive_init("daqui");
+    res = srvdb_accounts_table_init();
     if(!res)return(EXIT_FAILURE);
-    printf("archive init successed\n");
-    res = srvdb_shelf_find(&msg, &rows);
-    if(!res)return(EXIT_FAILURE);
-    printf("find successed,%d rows\n", rows);
-    show_result();
+    printf("accounts init successed\n");
+
+    strcpy(msg.user, "admin");
+    strcpy(msg.stuff.account.password, "123456");
+    msg.stuff.account.type=1;
+    for(i = 0; i < 30; i++){
+        if(i == 7)msg.stuff.account.type = 0;
+        sprintf(msg.stuff.account.name, "daqui%02d", i);
+        srvdb_account_register(&msg);
+    }
+
+    memset(&msg, '\0', sizeof(message_cs_t));
+    strcpy(msg.user, "admin");
+    strcpy(msg.stuff.account.name, "daqui09");
+    strcpy(msg.stuff.account.password, "1234567");
+    msg.stuff.account.type=0;
+    res = srvdb_account_verify(&msg);
+    if(res == 0){
+        if(msg.error_text[0] != '\0')
+            printf("%s\n", msg.error_text);
+        else
+            printf("verify error\n");
+        return(EXIT_FAILURE);
+    }
+
+    printf("match\n");
     return(EXIT_SUCCESS);
 }
 

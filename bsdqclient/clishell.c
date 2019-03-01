@@ -17,23 +17,51 @@ static int find_from_server(message_cs_t *msg);
 //封装client端初始化操作
 //
 
-int client_initialize(char* host, char* user)
+int client_start_login(char *host, account_entry_t *user_account, char *errInfo)
 {
-    if (!clidb_init(user)){
-#if DEBUG_TRACE
-        fprintf(stderr, "client database initialize failed.\n");
-#endif
-        return(0);
-    }
-
+    //socket连接
     if (!socket_client_init(host)){
 #if DEBUG_TRACE
         fprintf(stderr, "client socket initialize failed.\n");
 #endif
+        strcpy(errInfo, "无法连接服务器...");
         return(0);
     }
     
-    strcpy(login_user, user);
+    //验证用户身份
+    if (!client_verify_account(user_account, errInfo))return(0);
+
+    //dbm数据库初始化
+    if (!clidb_init(user_account->name)){
+#if DEBUG_TRACE
+        fprintf(stderr, "client database initialize failed.\n");
+#endif
+        strcpy(errInfo, "dbm初始化失败...");
+        socket_client_close();
+        return(0);
+    }
+
+    strcpy(login_user, user_account->name);
+    return(1);
+}
+
+int client_start_register(char *host, account_entry_t *user_account, char *errInfo)
+{
+    //socket连接
+    if (!socket_client_init(host)){
+#if DEBUG_TRACE
+        fprintf(stderr, "client socket initialize failed.\n");
+#endif
+        strcpy(errInfo, "无法连接服务器...");
+        return(0);
+    }
+    
+    //验证用户身份
+    if (!client_verify_account(user_account, errInfo))return(0);
+
+    //断开与server连接
+    socket_client_close();
+
     return(1);
 }
 
@@ -515,29 +543,45 @@ int client_build_shelf(shelf_entry_t *user_shelf, char *errInfo)
     return(res);
 }
 
-int client_register_account(account_entry_t *user_account)
+int client_register_account(account_entry_t *user_account, char *errInfo)
 {
     message_cs_t msg;
+    int res;
 
     memset(&msg, '\0', sizeof(message_cs_t));
     strcpy(msg.user, login_user);
     msg.request = req_register_account_e;
     msg.stuff.account = *user_account;
+    res = find_from_server(&msg);
+    if(res == 0){
+        if(msg.error_text[0] == '\0')
+            strcpy(errInfo, "注册账户失败");
+        else
+            strcpy(errInfo, msg.error_text);
+    }
 
-    return(find_from_server(&msg));
+    return(res);
 }
 
-int client_verify_account(account_entry_t *user_account)
+int client_verify_account(account_entry_t *user_account, char *errInfo)
 {
     message_cs_t msg;
+    int res;
 
     memset(&msg, '\0', sizeof(message_cs_t));
     strcpy(msg.user, login_user);
     msg.request = req_verify_account_e;
     msg.stuff.account = *user_account;
+    res = find_from_server(&msg);
 
-    return(find_from_server(&msg));
+    if(res == 0){
+        if(msg.error_text[0] == '\0')
+            strcpy(errInfo, "账户验证失败");
+        else
+            strcpy(errInfo, msg.error_text);
+    }
 
+    return(res);
 }
 
 int client_login_account(account_entry_t *user_account)
@@ -549,7 +593,6 @@ int client_login_account(account_entry_t *user_account)
     msg.request = req_login_account_e;
 
     return(find_from_server(&msg));
-
 }
 
 static int find_from_server(message_cs_t *msg)

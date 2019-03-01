@@ -8,13 +8,12 @@ void show_result(void);
 
 int main()
 {
-    int res;
-    int i;
+    int res, rows;
 //    unsigned char depth[MAX_FLOORS] = {2,3,2,1}; 
     message_cs_t msg;
 
-    strcpy(msg.user, "admin");
-    strcpy(msg.stuff.account.password, "ice0tree");
+    strcpy(msg.user, "daqui");
+    msg.stuff.shelf.code = NON_SENSE_INT;
 
     res = srvdb_init();
     if(!res)return(EXIT_FAILURE);
@@ -22,23 +21,13 @@ int main()
     res = srvdb_connect("127.0.0.1", 0);
     if(!res)return(EXIT_FAILURE);
     printf("connect successed\n");
-    res = srvdb_accounts_table_init();
+    res = srvdb_user_archive_init("daqui");
     if(!res)return(EXIT_FAILURE);
-    printf("accounts init successed\n");
-    for(i = 1; i < 20; i++){
-        sprintf(msg.stuff.account.name, "daqui%02d", i);
-        res = srvdb_account_register(&msg);
-        if(!res)printf("%d %s\n", i, msg.error_text);
-            //return(EXIT_FAILURE);
-    }
-    //printf("accounts register successed\n");
-    /*res = srvdb_account_verify(&msg);*/
-    /*if(res == VERIFY_PASSWORD_ERR)*/
-        /*return(EXIT_FAILURE);*/
-    /*if(res == VERIFY_PASSWORD_MATCH)*/
-        /*printf("match\n");*/
-    /*if(res == VERIFY_PASSWORD_NOT_MATCH)*/
-        /*printf("match\n");*/
+    printf("archive init successed\n");
+    res = srvdb_shelf_find(&msg, &rows);
+    if(!res)return(EXIT_FAILURE);
+    printf("find successed,%d rows\n", rows);
+    show_result();
     return(EXIT_SUCCESS);
 }
 

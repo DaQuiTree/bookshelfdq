@@ -4,7 +4,8 @@
 #include "clisrv.h"
 
 //通用
-int client_initialize(char* host, char* user);
+int client_start_login(char *host, account_entry_t *user_account, char *errInfo);
+int client_start_register(char *host, account_entry_t *user_account, char *errInfo);
 int client_shelves_info_sync(shelf_count_t *sc);
 int client_shelves_count_sync(shelf_count_t *sc); 
 int client_books_count_sync(book_count_t *bc); 
@@ -28,8 +29,8 @@ int client_shelf_unsorted_books(int shelfno);
 int client_shelf_delete_itself(int shelfno);
 
 //账户操作
-int client_register_account(account_entry_t *user_account);
-int client_verify_account(account_entry_t *user_account);
+int client_register_account(account_entry_t *user_account, char *errInfo);
+int client_verify_account(account_entry_t *user_account, char *errInfo);
 int client_login_account(account_entry_t *user_account);
 
 #endif

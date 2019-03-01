@@ -50,10 +50,17 @@ typedef struct{
 #define MAX_USER_NUM (16)
 #define BCRYPT_WORK_FACTOR (12)
 #define SALT_LENGTH (30)
+#define ACCOUNT_TYPE_LENGTH (16)
+
+typedef enum{
+    account_admin_e,
+    account_user_e
+}account_type_e;
 
 typedef struct{
-    char name[BCRYPT_HASHSIZE + 1];	
-    char password[BCRYPT_HASHSIZE + 1];
+    account_type_e  type;
+    char    name[BCRYPT_HASHSIZE + 1];	
+    char    password[BCRYPT_HASHSIZE + 1];
 }account_entry_t;
 
 

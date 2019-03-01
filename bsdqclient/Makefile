@@ -28,7 +28,7 @@ bsdq_client: bsdq_client.o socketcom.o srvdb.o
 	$(CC) $(CFLAGS) $(DFLAGS) -o bsdq_client -I$(MYSQL_INC_PATH) $^  $(MYSQL_LIB_FILE) -L$(MYSQL_LIB_PATH)
 test_clidb: test_clidb.o clidb.o
 	$(CC) $(CFLAGS) $(DFLAGS) -o test_clidb -I$(DBM_INC_PATH) $^ $(DBM_LIB_FILE)
-testshell: testshell.o clishell.o clidb.o ncgui.o ../bsdqserver/socketcom.o ../bsdqserver/srvdb.o
+testshell: testshell.o clishell.o clidb.o ncgui.o ../bsdqserver/socketcom.o ../bsdqserver/srvdb.o ../bsdqserver/libbcrypt/bcrypt.a
 	$(CC) $(CFLAGS) $(DFLAGS) -o testshell -I$(DBM_INC_PATH) -I$(MYSQL_INC_PATH) -I$(NC_INC_PATH) $^ $(MYSQL_LIB_FILE) $(DBM_LIB_FILE) $(NC_LIB_FILE) -L$(MYSQL_LIB_PATH) 
 .c.o:
 	$(CC) $(CFLAGS) $(DFLAGS) -I$(MYSQL_INC_PATH) -I$(NC_INC_PATH) -c $<

@@ -26,7 +26,7 @@ static int get_simple_result(MYSQL *conn, char* res_str)
     result_ptr = mysql_use_result(conn);
     if (result_ptr){
         sqlrow = mysql_fetch_row(result_ptr);
-        if (sqlrow[0] != NULL){
+        if (sqlrow != NULL){
             strcpy(res_str, sqlrow[0]);
             mysql_free_result(result_ptr);
             return 1;
@@ -79,7 +79,7 @@ int srvdb_accounts_table_init(void)
                 userno INT NOT NULL AUTO_INCREMENT,\
                 name VARCHAR(200) NOT NULL,\
                 password VARCHAR(200) NOT NULL,\
-                type VARCHAR(20) NOT NULL,\
+                type INT NOT NULL,\
                 PRIMARY KEY (userno, name))", my_bsdq_accounts);
     result = mysql_query(&my_connection, qs);
     if (result){
@@ -860,8 +860,10 @@ int srvdb_shelf_count(message_cs_t *msg)
 
 int srvdb_account_verify(message_cs_t *msg)
 {
-    char es_name[BCRYPT_HASHSIZE*2 + 1];
+    char es_name[BCRYPT_HASHSIZE*+1];
     char db_hash_pw[BCRYPT_HASHSIZE+1];
+    account_type_e db_type;
+    char temp_str[512];
     char is[1024];
     int res;
 
@@ -875,19 +877,41 @@ int srvdb_account_verify(message_cs_t *msg)
     //保护字符串中的特殊字符
     mysql_escape_string(es_name, msg->stuff.account.name, strlen(msg->stuff.account.name));
 
+    //从db获取用户类型
+    sprintf(is, "SELECT type FROM %s where name='%s'", my_bsdq_accounts, es_name);
+    res = mysql_query(&my_connection, is);
+    if(!res) {
+        if(!get_simple_result(&my_connection, temp_str)){
+#if DEBUG_TRACE
+            fprintf(stderr, "Verify account get type error: get_simple_result()\n");
+#endif
+            return(0);
+        }
+        sscanf(temp_str, "%d", (int *)&db_type);
+        if(db_type != msg->stuff.account.type){
+            sprintf(msg->error_text, "帐号或密码错误");
+            return(0);
+        }
+    }else{
+#if DEBUG_TRACE
+        fprintf(stderr, "Verify account get type error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
+#endif
+        return(0);
+    }
+
     //从db获取hash
     sprintf(is, "SELECT password FROM %s where name='%s'", my_bsdq_accounts, es_name);
     res = mysql_query(&my_connection, is);
     if(!res) {
         if(!get_simple_result(&my_connection, db_hash_pw)){
 #if DEBUG_TRACE
-            fprintf(stderr, "Verify account error: get_simple_result()\n");
+            fprintf(stderr, "Verify account get password error: get_simple_result()\n");
 #endif
             return(0);
         }
     }else{
 #if DEBUG_TRACE
-        fprintf(stderr, "Verify account error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
+        fprintf(stderr, "Verify account get password error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
 #endif
         return(0);
     }
@@ -905,7 +929,7 @@ int srvdb_account_verify(message_cs_t *msg)
     if(res == 0)return(1);
 
     //验证失败
-    sprintf(msg->error_text, "密码错误");
+    sprintf(msg->error_text, "帐号或密码错误");
     return(0);
 }
 
@@ -999,7 +1023,7 @@ int srvdb_account_register(message_cs_t *msg)
     //保护字符串中的特殊字符
     mysql_escape_string(es_password, hash_pw, strlen(hash_pw));
 
-    sprintf(is, "INSERT INTO %s(name, password, type) VALUES('%s', '%s', 'user')", my_bsdq_accounts, es_name, es_password);
+    sprintf(is, "INSERT INTO %s(name, password, type) VALUES('%s', '%s', %d)", my_bsdq_accounts, es_name, es_password, msg->stuff.account.type);
     res = mysql_query(&my_connection, is);
     if(!res)return(1);
 #if DEBUG_TRACE

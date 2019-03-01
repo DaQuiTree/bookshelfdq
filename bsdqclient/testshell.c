@@ -7,11 +7,15 @@ int main()
     int running = 1;
     int ret_menu = menu_non_sense_e, op_menu = menu_non_sense_e;
     
-    if(!ncgui_connect_to_server("127.0.0.1", "daqui"))
-        exit(EXIT_FAILURE);
+    ncgui_init();
+
+    if(ncgui_display_login_page() == menu_quit_e){
+        ncgui_close();
+        exit(EXIT_SUCCESS);
+    }//用户选择退出登录
+
     if(!ncgui_sync_from_server())
         exit(EXIT_FAILURE);
-    ncgui_init();
     while(running){
         if(ret_menu != menu_cycle_e){//程序自身有循环刷新当前界面要求
             ncgui_clear_all_screen();

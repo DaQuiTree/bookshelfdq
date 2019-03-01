@@ -39,6 +39,7 @@ typedef enum{
 
 typedef enum{
     page_nonsense_e,
+    page_login_e,
     page_mainmenu_e,
     page_lookthrough_e,
     page_buildshelf_e,
@@ -56,6 +57,13 @@ typedef enum{
     menu_cycle_e
 }ui_menu_e;
 
+typedef enum{
+    lg_option_name,
+    lg_option_password,
+    lg_option_login,
+    lg_option_register
+}ui_login_option_e;
+
 typedef struct{
     WINDOW *win;
     int start_posx;
@@ -66,15 +74,15 @@ typedef struct{
     int max_row;//滑块最多可移动行
 }slider_t;
 
-int ncgui_connect_to_server(char* hostname, char *user);
 int ncgui_sync_from_server(void);
 
 void ncgui_init(void);
 void ncgui_close(void);
 void ncgui_clear_all_screen(void);
 
-ui_menu_e ncgui_get_choice(void);
 void ncgui_display_mainmenu_page(void);
+ui_menu_e ncgui_get_choice(void);
+ui_menu_e ncgui_display_login_page(void);
 ui_menu_e ncgui_display_lookthrough_page(void);
 ui_menu_e ncgui_display_buildshelf_page(void);
 ui_menu_e ncgui_display_searchbook_page(void);
