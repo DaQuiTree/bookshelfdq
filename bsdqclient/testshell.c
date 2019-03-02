@@ -15,8 +15,11 @@ int main()
         if(ret_menu == menu_quit_e){//用户选择退出登录
             ncgui_close();
             exit(EXIT_SUCCESS);
+        }else if(ret_menu == menu_register_e){//进入注册界面
+            ncgui_display_register_page();
+            ret_menu = menu_login_e;
         }
-    }while(ret_menu == menu_cycle_e);
+    }while(ret_menu == menu_login_e);
     ret_menu = menu_non_sense_e;
 
     //主界面

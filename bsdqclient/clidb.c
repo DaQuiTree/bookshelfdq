@@ -206,7 +206,6 @@ static int clidb_shelf_real_insert(shelf_entry_t *user_shelf, int mode)
         SHELF_RECORD_SET(user_shelf->code);
     }
 
-    printf("%d!!\n",user_shelf->code);
     if(!shelf_record_save()){
 #if DEBUG_TRACE
         fprintf(stderr, "clidb_shelf_insert() error: shelf_record_save() failed.\n");

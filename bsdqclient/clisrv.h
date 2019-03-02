@@ -123,6 +123,7 @@ typedef struct{
 #define FETCH_RESULT_ERR (0)
 
 //全局定义
+#define SERVER_HOSTNAME ("127.0.0.1")
 #define BOOK_AVL (0)
 #define BOOK_DEL (1)
 #define BOOK_UNSORTED (2)

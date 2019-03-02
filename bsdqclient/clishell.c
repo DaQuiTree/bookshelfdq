@@ -28,20 +28,29 @@ int client_start_login(char*host, account_entry_t *user_account, char *errInfo)
         return(0);
     }
     
-    //验证用户身份
-    if (!client_verify_account(user_account, 1, errInfo))return(0);
-
-    //dbm数据库初始化
-    if (!clidb_init(user_account->name)){
+    if(user_account->type == account_user_e){
+        //验证普通登录身份
+        if (!client_verify_account(user_account, 1, errInfo)){
+            socket_client_close();
+            return(0);
+        }
+        if (!clidb_init(user_account->name)){//dbm数据库初始化
 #if DEBUG_TRACE
-        fprintf(stderr, "client database initialize failed.\n");
+            fprintf(stderr, "client database initialize failed.\n");
 #endif
-        strcpy(errInfo, "dbm初始化失败...");
-        socket_client_close();
-        return(0);
+            strcpy(errInfo, "dbm初始化失败...");
+            socket_client_close();
+            return(0);
+        }
+        strcpy(login_user, user_account->name);
+    }else if(user_account->type == account_admin_e){
+        //验证管理员身份
+        if (!client_verify_account(user_account, 0, errInfo)){
+            socket_client_close();
+            return(0);
+        }
     }
 
-    strcpy(login_user, user_account->name);
     return(1);
 }
 
@@ -57,7 +66,7 @@ int client_start_register(char *host, account_entry_t *user_account, char *errIn
     }
     
     //验证用户身份
-    if (!client_verify_account(user_account, 0, errInfo))return(0);
+    if (!client_register_account(user_account, errInfo))return(0);
 
     //断开与server连接
     socket_client_close();
@@ -536,7 +545,6 @@ int client_build_shelf(shelf_entry_t *user_shelf, char *errInfo)
 
     res = find_from_server(&msg);
 
-    printf("%d\n", msg.stuff.shelf.code);
     if(res == 1)
         clidb_shelf_insert(&msg.stuff.shelf);
     else
@@ -550,7 +558,7 @@ int client_register_account(account_entry_t *user_account, char *errInfo)
     int res;
 
     memset(&msg, '\0', sizeof(message_cs_t));
-    strcpy(msg.user, login_user);
+    strcpy(msg.user, user_account->name);
     msg.request = req_register_account_e;
     msg.stuff.account = *user_account;
     res = find_from_server(&msg);
@@ -570,13 +578,10 @@ int client_verify_account(account_entry_t *user_account, int init_mode, char *er
     int res;
 
     memset(&msg, '\0', sizeof(message_cs_t));
-    if(init_mode == 1)
-        strcpy(msg.user, user_account->name);
-    else
-        strcpy(msg.user, login_user);
+    strcpy(msg.user, user_account->name);
     msg.request = req_verify_account_e;
     msg.stuff.account = *user_account;
-    if(init_mode == 1)
+    if(init_mode == 1 && user_account->type == account_user_e)
         msg.extra_info[0] = 1;
     res = find_from_server(&msg);
 

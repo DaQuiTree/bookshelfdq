@@ -40,6 +40,7 @@ typedef enum{
 typedef enum{
     page_nonsense_e,
     page_login_e,
+    page_register_e,
     page_mainmenu_e,
     page_lookthrough_e,
     page_buildshelf_e,
@@ -54,7 +55,9 @@ typedef enum{
     menu_search_book_e,
     menu_quit_e,
     menu_non_sense_e,
-    menu_cycle_e
+    menu_cycle_e,
+    menu_login_e,
+    menu_register_e,
 }ui_menu_e;
 
 typedef enum{
@@ -63,6 +66,13 @@ typedef enum{
     lg_option_login,
     lg_option_register
 }ui_login_option_e;
+
+typedef enum{
+    reg_option_name,
+    reg_option_password,
+    reg_option_register,
+    reg_option_back
+}ui_register_option_e;
 
 typedef struct{
     WINDOW *win;
@@ -82,6 +92,7 @@ void ncgui_clear_all_screen(void);
 
 void ncgui_display_mainmenu_page(void);
 ui_menu_e ncgui_get_choice(void);
+void ncgui_display_register_page(void);
 ui_menu_e ncgui_display_login_page(void);
 ui_menu_e ncgui_display_lookthrough_page(void);
 ui_menu_e ncgui_display_buildshelf_page(void);
