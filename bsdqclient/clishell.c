@@ -17,7 +17,7 @@ static int find_from_server(message_cs_t *msg);
 //封装client端初始化操作
 //
 
-int client_start_login(char *host, account_entry_t *user_account, char *errInfo)
+int client_start_login(char*host, account_entry_t *user_account, char *errInfo)
 {
     //socket连接
     if (!socket_client_init(host)){
@@ -29,7 +29,7 @@ int client_start_login(char *host, account_entry_t *user_account, char *errInfo)
     }
     
     //验证用户身份
-    if (!client_verify_account(user_account, errInfo))return(0);
+    if (!client_verify_account(user_account, 1, errInfo))return(0);
 
     //dbm数据库初始化
     if (!clidb_init(user_account->name)){
@@ -57,7 +57,7 @@ int client_start_register(char *host, account_entry_t *user_account, char *errIn
     }
     
     //验证用户身份
-    if (!client_verify_account(user_account, errInfo))return(0);
+    if (!client_verify_account(user_account, 0, errInfo))return(0);
 
     //断开与server连接
     socket_client_close();
@@ -536,8 +536,9 @@ int client_build_shelf(shelf_entry_t *user_shelf, char *errInfo)
 
     res = find_from_server(&msg);
 
+    printf("%d\n", msg.stuff.shelf.code);
     if(res == 1)
-        (void)clidb_shelf_insert(&msg.stuff.shelf);
+        clidb_shelf_insert(&msg.stuff.shelf);
     else
         strcpy(errInfo, msg.error_text);
     return(res);
@@ -563,15 +564,20 @@ int client_register_account(account_entry_t *user_account, char *errInfo)
     return(res);
 }
 
-int client_verify_account(account_entry_t *user_account, char *errInfo)
+int client_verify_account(account_entry_t *user_account, int init_mode, char *errInfo)
 {
     message_cs_t msg;
     int res;
 
     memset(&msg, '\0', sizeof(message_cs_t));
-    strcpy(msg.user, login_user);
+    if(init_mode == 1)
+        strcpy(msg.user, user_account->name);
+    else
+        strcpy(msg.user, login_user);
     msg.request = req_verify_account_e;
     msg.stuff.account = *user_account;
+    if(init_mode == 1)
+        msg.extra_info[0] = 1;
     res = find_from_server(&msg);
 
     if(res == 0){
@@ -582,17 +588,6 @@ int client_verify_account(account_entry_t *user_account, char *errInfo)
     }
 
     return(res);
-}
-
-int client_login_account(account_entry_t *user_account)
-{
-    message_cs_t msg;
-
-    memset(&msg, '\0', sizeof(message_cs_t));
-    strcpy(msg.user, login_user);
-    msg.request = req_login_account_e;
-
-    return(find_from_server(&msg));
 }
 
 static int find_from_server(message_cs_t *msg)

@@ -88,7 +88,6 @@ typedef enum{
     req_count_shelf_e,
     req_verify_account_e,
     req_register_account_e,
-    req_login_account_e
 }client_request_e;
 
 typedef enum{

@@ -269,13 +269,18 @@ int socket_srv_process_request(int client_fd)
             if(!srvdb_shelf_count(&msg))msg.response = r_failed;
             break;
         case req_verify_account_e:
-            if(!srvdb_account_verify(&msg))msg.response = r_failed;
+            if(!srvdb_account_verify(&msg)){
+                msg.response = r_failed;
+            }else{
+                //验证通过,进行数据库初始化
+                if(msg.extra_info[0] == 1){
+                    if(!srvdb_user_archive_init(msg.stuff.account.name))
+                        msg.response = r_failed;
+                }
+            }
             break;
         case req_register_account_e:
             if(!srvdb_account_register(&msg))msg.response = r_failed;
-            break;
-        case req_login_account_e:
-            if(!srvdb_user_archive_init(msg.user))msg.response = r_failed;
             break;
         default:
             msg.response = r_failed;

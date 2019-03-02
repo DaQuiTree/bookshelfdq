@@ -9,11 +9,17 @@ int main()
     
     ncgui_init();
 
-    if(ncgui_display_login_page() == menu_quit_e){
-        ncgui_close();
-        exit(EXIT_SUCCESS);
-    }//用户选择退出登录
+    //登录界面
+    do{
+        ret_menu = ncgui_display_login_page();
+        if(ret_menu == menu_quit_e){//用户选择退出登录
+            ncgui_close();
+            exit(EXIT_SUCCESS);
+        }
+    }while(ret_menu == menu_cycle_e);
+    ret_menu = menu_non_sense_e;
 
+    //主界面
     if(!ncgui_sync_from_server())
         exit(EXIT_FAILURE);
     while(running){

@@ -26,7 +26,6 @@ static DBM *shelf_dbm_ptr = NULL;
 static DBM *book_dbm_ptr = NULL;
 
 //记录存入数据库的书架编号
-static int shelf_record_init = 1;
 static int shelf_record[MAX_SHELF_NUM] = {0};
 #define SHELF_RECORD_UNSET(x) (shelf_record[x-1] = 0)
 #define SHELF_RECORD_SET(x) (shelf_record[x-1] = 1)
@@ -207,6 +206,7 @@ static int clidb_shelf_real_insert(shelf_entry_t *user_shelf, int mode)
         SHELF_RECORD_SET(user_shelf->code);
     }
 
+    printf("%d!!\n",user_shelf->code);
     if(!shelf_record_save()){
 #if DEBUG_TRACE
         fprintf(stderr, "clidb_shelf_insert() error: shelf_record_save() failed.\n");
@@ -251,8 +251,8 @@ static int shelf_record_obtain(void)
 #if DEBUG_TRACE
         fprintf(stderr, "shelf_record_obtain(): did not obtain shelf record info.\n");
 #endif
-        
-    shelf_record_init = 1;//未获取到shelf_record,需要初始化
+
+    shelf_record_save();//未获取到shelf_record,需要初始化
     return(0);
 }
 

@@ -10,18 +10,24 @@ static char *limit_str_width(const char *ostr, char *newstr, int limit);
 
 int main()
 {
-    int cpy;
-    char str[128];
+    int a;
+/*    int cpy;*/
+    /*char str[128];*/
 
-    char *a = "0123456789012345678901234567890123456789";
-    char *b = "张振奎爱小麦呀真的哦我从来";
-    char *c = "abc我爱你cdefg我的1111111111我是我贺我是地";
-    char *d = "；：‘’‘’‘’‘’‘’‘’‘’！！！！！！？～。，《》";
+    /*char *a = "0123456789012345678901234567890123456789";*/
+    /*char *b = "张振奎爱小麦呀真的哦我从来";*/
+    /*char *c = "abc我爱你cdefg我的1111111111我是我贺我是地";*/
+    /*char *d = "；：‘’‘’‘’‘’‘’‘’‘’！！！！！！？～。，《》";*/
 
-    printf("%s\n", limit_str_width(a, str, 23));
-    printf("%s\n", limit_str_width(b, str, 23));
-    printf("%s\n", limit_str_width(c, str, 23));
-    printf("%s\n", limit_str_width(d, str, 23));
+    /*printf("%s\n", limit_str_width(a, str, 23));*/
+    /*printf("%s\n", limit_str_width(b, str, 23));*/
+    /*printf("%s\n", limit_str_width(c, str, 23));*/
+    /*printf("%s\n", limit_str_width(d, str, 23));*/
+    while(1){
+        a = getchar();
+        printf("%d\n", a);
+        if(a == '\n')break;
+    }
 }
 
 static char *limit_str_width(const char *oldstr, char *newstr, int limit)

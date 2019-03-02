@@ -27,9 +27,11 @@ static int get_simple_result(MYSQL *conn, char* res_str)
     if (result_ptr){
         sqlrow = mysql_fetch_row(result_ptr);
         if (sqlrow != NULL){
-            strcpy(res_str, sqlrow[0]);
-            mysql_free_result(result_ptr);
-            return 1;
+            if(sqlrow[0] != NULL){
+                strcpy(res_str, sqlrow[0]);
+                mysql_free_result(result_ptr);
+                return 1;
+            }
         }
     }else{
 #if DEBUG_TRACE
@@ -169,7 +171,7 @@ int srvdb_book_insert(message_cs_t *msg)
     res = mysql_query(&my_connection, is);//在废弃编号里查找
     if(!res) {
        if (get_simple_result(&my_connection, temp_str)){
-            if(temp_str != NULL){ //有废弃的可用编号
+            if(temp_str[0] != '\0'){ //有废弃的可用编号
                 sscanf(temp_str, "%d", &bookno_used);
                 sprintf(is, "UPDATE %s SET cleaned=%d,shelfno=%d,floorno=%d,name='%s',author='%s',\
                         label='%s',borrowed=%c,on_reading=%c,encoding_time='%s' WHERE bookno=%d",\
@@ -205,15 +207,14 @@ int srvdb_book_insert(message_cs_t *msg)
                     sprintf(msg->error_text, "上架失败:图书数量达到上限");
                     return(0);
                 }
-               msg->stuff.book.code[2] = bookno_used;
+                msg->stuff.book.code[2] = bookno_used+1;
             }
         }else{
 #if DEBUG_TRACE
             fprintf(stderr, "SELECT MAX(bookno)error: get_simple_result()\n");
 #endif
             //书籍表为空
-            bookno_used = 0; 
-            msg->stuff.book.code[2] = bookno_used;
+            msg->stuff.book.code[2] = bookno_used = 1;
         }
     }else{
 #if DEBUG_TRACE
@@ -224,7 +225,7 @@ int srvdb_book_insert(message_cs_t *msg)
          
     sprintf(is, "INSERT INTO %s(shelfno, floorno, bookno, name, author, label, borrowed, on_reading, cleaned, encoding_time)\
             VALUES(%d, %d, %d, '%s', '%s', '%s', %c, %c, %d, '%s')", table_name, shelfno_save, \
-            floorno_save, bookno_used+1, es_name, es_author, es_label, msg->stuff.book.borrowed, \
+            floorno_save, bookno_used, es_name, es_author, es_label, msg->stuff.book.borrowed, \
             msg->stuff.book.on_reading, BOOK_AVL, msg->stuff.book.encoding_time);
     res = mysql_query(&my_connection, is);
     if(!res)return(1);
@@ -610,7 +611,7 @@ int srvdb_shelf_build(message_cs_t *msg)
     res = mysql_query(&my_connection, is);//在废弃编号里查找
     if(!res) {
        if (get_simple_result(&my_connection, temp_str)){
-            if(temp_str != NULL){ //有废弃的可用编号
+            if(temp_str[0] != '\0'){ //有废弃的可用编号
                 sscanf(temp_str, "%d", &shelfno_used);
                 sprintf(is, "UPDATE %s SET cleaned=%d, name='%s', nfloors=%d,\
                         floor_depth='%s', building_time='%s' WHERE shelfno=%d",\
@@ -628,7 +629,7 @@ int srvdb_shelf_build(message_cs_t *msg)
 #endif
                 }
             }
-        }
+       }
     }else{
 #if DEBUG_TRACE
         fprintf(stderr, "SELECT MIN(shelfno) error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
@@ -646,14 +647,13 @@ int srvdb_shelf_build(message_cs_t *msg)
                     sprintf(msg->error_text, "打造失败:书架达到上限");
                     return(0);
                 }
-                msg->stuff.shelf.code = shelfno_used;
+                msg->stuff.shelf.code = shelfno_used+1;
             }
         }else{
 #if DEBUG_TRACE
             fprintf(stderr, "SELECT MAX(shelfno)error: get_simple_result()\n");
 #endif
-            shelfno_used = 0;
-            msg->stuff.shelf.code = shelfno_used;
+            msg->stuff.shelf.code = shelfno_used = 1;
         }
     }else{
 #if DEBUG_TRACE
@@ -663,7 +663,7 @@ int srvdb_shelf_build(message_cs_t *msg)
     }
          
     sprintf(is, "INSERT INTO %s(shelfno, name, nfloors, floor_depth, cleaned, building_time)\
-            VALUES(%d, '%s', %d, '%s', %d, '%s')", table_name, shelfno_used+1, es_name, msg->stuff.shelf.nfloors,\
+            VALUES(%d, '%s', %d, '%s', %d, '%s')", table_name, shelfno_used, es_name, msg->stuff.shelf.nfloors,\
             floor_depth_str, SHELF_AVL, msg->stuff.shelf.building_time);
     res = mysql_query(&my_connection, is);
     if(!res)return(1);

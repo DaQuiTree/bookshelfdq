@@ -39,7 +39,9 @@ char HEX_ASC[] = {'0', '1', '2', '3',\
 
 //默认支持的密码长度
 #define PW_UNDERLINE_LEN 20
-#define DEFAULT_PW_LEN PW_UNDERLINE_LEN
+#define DEFAULT_INPUT_LEN PW_UNDERLINE_LEN
+#define MIN_PW_LEN 6
+#define ERROR_INFO_LEN 64
 
 char login_user[USER_NAME_LEN+1];
 
@@ -427,7 +429,9 @@ ui_menu_e ncgui_display_buildshelf_page(void)
     //开始打造
     memset(temp_str, '\0', SHELF_NAME_LEN+1);
     if(get_confirm("开始打造吗?", "Yes")){
-        if(client_build_shelf(&local_shelf, temp_str)) error_line("新书架打造成功!"); else
+        if(client_build_shelf(&local_shelf, temp_str))
+            error_line("书架打造成功!");
+        else
             error_line(temp_str);
         sleep(2);
     }else{
@@ -442,6 +446,9 @@ ui_menu_e ncgui_display_buildshelf_page(void)
     delwin(nbwin);
     wclear(padwin);
     delwin(padwin);
+
+    //同步信息
+    client_shelves_count_sync(&gui_sc);
 
     return(rt_menu);
 }
@@ -527,7 +534,7 @@ static void set_shelf_parameter(WINDOW *win, int nfloors, unsigned char depthArr
                 ++curs_floor > nfloors? curs_floor = nfloors: 0;
                 break;
             case KEY_LEFT:
-                --depthArr[curs_floor-1] < 0 ? depthArr[curs_floor-1]=0 : 0;
+                --depthArr[curs_floor-1] == 255 ? depthArr[curs_floor-1]=0 : 0;
                 break;
             case KEY_RIGHT:
                 ++depthArr[curs_floor-1] > MAX_DEPTH ? depthArr[curs_floor-1]=MAX_DEPTH : 0;
@@ -664,7 +671,7 @@ static void show_searchbox_info(book_entry_t *local_book)
     }
 
     //检索框显示书名关键字
-    limit_str_width(local_book->name, str_show, str_limit);
+    limit_str_width(local_book->name+1, str_show, str_limit);
     switch(local_book->name[0]){
         case '0':
             break;
@@ -688,7 +695,7 @@ static void show_searchbox_info(book_entry_t *local_book)
     memset(str_show, '\0', 46);
 
     //作者关键字
-    limit_str_width(local_book->author, str_show, str_limit);
+    limit_str_width(local_book->author+1, str_show, str_limit);
     switch(local_book->author[0]){
         case '0':
             break;
@@ -856,6 +863,13 @@ static ui_menu_e display_lookthrough_page(int select_mode)
 
     refresh();
 
+    //判断书架是否为空
+    if(gui_sc.shelves_all == 0){
+        error_line("无可浏览书架");
+        sleep(2);
+        return(menu_non_sense_e);   
+    }
+
     //shelves pad填充内容并初始化滑块
     if(!pad_fill_shelves_info(&padwin, &lt_slider, &logic_rows))
         return(menu_non_sense_e);
@@ -866,6 +880,7 @@ static ui_menu_e display_lookthrough_page(int select_mode)
     client_shelf_count_book(local_shelf.code, &local_count);
     show_shelf_info(pad_posx, WIN_WIDTH-PAD_BOXED_WIDTH, &local_shelf, &local_count);
 
+    printf("*****\n");
     //获取用户输入
     while(lt_key != KEY_BACKSPACE){
         prefresh(padwin, first_line, 0, pad_posx, pad_posy, pad_posx+PAD_BOXED_HIGHT-1, PAD_BOXED_WIDTH);
@@ -930,10 +945,12 @@ static ui_menu_e display_lookthrough_page(int select_mode)
                 }
                 op_key = LOCAL_KEY_NON_SENSE;
                 destroy_lt_option_box(&opwin);
-                move_slider(&lt_slider, 0);
-                clidb_shelf_get(clidb_shelf_realno(first_line+lt_slider.current_row+1), &local_shelf);
-                client_shelf_count_book(local_shelf.code, &local_count);
-                show_shelf_info(pad_posx, WIN_WIDTH-PAD_BOXED_WIDTH, &local_shelf, &local_count);
+                if(lt_key != KEY_BACKSPACE){//返回主界面不再更新本界面
+                    move_slider(&lt_slider, 0);
+                    clidb_shelf_get(clidb_shelf_realno(lt_slider.current_row+1), &local_shelf);
+                    client_shelf_count_book(local_shelf.code, &local_count);
+                    show_shelf_info(pad_posx, WIN_WIDTH-PAD_BOXED_WIDTH, &local_shelf, &local_count);
+                }
                 refresh();
             }
         }
@@ -985,6 +1002,7 @@ static int pad_fill_shelves_info(WINDOW **win, slider_t *sld, int *para_logic_ro
         }
     }
 
+    printf("~~%d~~~\n", nshelves);
     //计算实际移动的和逻辑上的最大值
     if(nshelves > PAD_BOXED_HIGHT - 1)
         sld->max_row = PAD_BOXED_HIGHT - 1;
@@ -1299,7 +1317,7 @@ static int add_newbook_page(shelf_entry_t *user_shelf)
     slider_t nb_slider;
     book_entry_t local_book;
     int i = 0;
-    char errInfo[64] = {0};
+    char errInfo[ERROR_INFO_LEN+1] = {0};
 
     ncgui_clear_all_screen();
 
@@ -2037,7 +2055,7 @@ static char *limit_str_width(const char *oldstr, char *newstr, int limit)
 //与登录界面相关
 //
 
-static void draw_login_framework(void)
+static void draw_login_framework(WINDOW **nWin, WINDOW **pWin)
 {
     int df_posx = GREET_ROW+2, df_posy = 14;
     int df_hight = 11, df_width = 40;
@@ -2066,87 +2084,116 @@ static void draw_login_framework(void)
         option_ptr++;
         i += 2;
     }
+    *nWin = newwin(1, DEFAULT_INPUT_LEN+1, df_posx+2, df_posy+14);
     move(df_posx+3, df_posy+14);
     whline(stdscr, ACS_HLINE, PW_UNDERLINE_LEN+1);
+    *pWin = newwin(1, DEFAULT_INPUT_LEN+1, df_posx+4, df_posy+14);
     move(df_posx+5, df_posy+14);
     whline(stdscr, ACS_HLINE, PW_UNDERLINE_LEN+1);
 
     refresh();
 }
 
-static int check_login_input(char *input_str, ui_login_option_e login_opt)
+static int check_login_input_char(char *input_str, int input_ch, ui_login_option_e login_opt)
+{
+    char *iptr = NULL;
+
+    if(login_opt == lg_option_name){
+        if(input_ch >= 0x30 && input_ch <= 0x39)return(1);//0~9
+        if(input_ch >= 0x41 && input_ch <= 0x5A)return(1);//a~z
+        if(input_ch >= 0x61 && input_ch <= 0x7A)return(1);//A~Z
+        if(input_ch == 0x5F)//'_'
+            if((iptr = strchr(input_str, '_')) == NULL)return(1);
+    }else if(login_opt == lg_option_password){
+        if(input_ch >= 0x21 && input_ch <= 0x7E)return(1);
+    }else if(login_opt == lg_option_register){
+    }
+
+    return(0);
+}
+
+int get_login_input(WINDOW *input_win, char *input_str, ui_login_option_e login_opt)
 {
     char *error_prompt[2] = {
         "仅支持0~9,a~z,A~Z与单一下划线的组合",
         "请正确输入且必须同时包含数字与字母"
     };
-    char *sptr = input_str;
-    int underline_cnt = 0;
+    int i = strlen(input_str);
+    int ret = 0;
+    int ch;
 
-    if(strlen(input_str) < 6){
-        error_line("最少支持6个字符");
-        sleep(1);
+    cbreak();
+    keypad(input_win, TRUE);
+    noecho();
+
+    curs_set(1);
+    while(1){
+        ch = mvwgetch(input_win, 0, i);
         clear_line(NULL, PROMPT_ROW, 1, 1, WIN_WIDTH-2);
-        return(0);
-    }
-
-    while(*sptr != '\0')
-    {
-        if((*sptr & 0x80) == 0){
-            if(login_opt == lg_option_name){
-                if(*sptr >= 0x30 && *sptr <= 0x39){
-                    sptr++;
-                }else if(*sptr >= 0x41 && *sptr <= 0x5A){
-                    sptr++;
-                }else if(*sptr >= 0x61 && *sptr <= 0x7A){
-                    sptr++;
-                }else if(*sptr == 0x5F){
-                    if(underline_cnt == 0){
-                        underline_cnt++;
-                        continue;
+        if(ch < 128){//检查是否为ASCII
+            if(ch == '\n'){
+                if(i < MIN_PW_LEN){
+                    input_str[0] = '\0';//清空字符串
+                    wclear(input_win);
+                    wrefresh(input_win);
+                    error_line("请输入最少6个字符");
+                    ret = 0;
+                    break;
+                }
+                ret = 1;
+                input_str[i] = '\0';
+                break;
+            }else{//不为回车
+                if(check_login_input_char(input_str, ch, login_opt)){//字符安全
+                    if(i < DEFAULT_INPUT_LEN){
+                        input_str[i] = ch;
+                        i++;
+                        if(login_opt == lg_option_name)
+                            waddch(input_win, ch);
+                        else if(login_opt == lg_option_password)
+                            waddch(input_win, '*');
+                        wrefresh(input_win);
+                    }else{
+                        error_line("输入过长");
                     }
-                    error_line(error_prompt[login_opt]);
-                    sleep(1);
-                    clear_line(NULL, PROMPT_ROW, 1, 1, WIN_WIDTH-2);
-                    return(0);
                 }else{
                     error_line(error_prompt[login_opt]);
-                    sleep(1);
-                    clear_line(NULL, PROMPT_ROW, 1, 1, WIN_WIDTH-2);
-                    return(0);
                 }
-            }else if(login_opt == lg_option_password){
-                if(*sptr >= 0x21 && *sptr <= 0x7A){
-                    sptr++;
-                    continue;
-                }
-                error_line(error_prompt[login_opt]);
-                sleep(1);
-                clear_line(NULL, PROMPT_ROW, 1, 1, WIN_WIDTH-2);
-                return(0);
             }
         }else{
-            error_line(error_prompt[login_opt]);
-            sleep(1);
-            clear_line(NULL, PROMPT_ROW, 1, 1, WIN_WIDTH-2);
-            return(0);
-        }   
+            switch(ch)
+            {
+                case KEY_BACKSPACE:
+                    if(--i < 0)i = 0;
+                    input_str[i] = '\0';
+                    wmove(input_win, 0, i);
+                    wdelch(input_win);
+                    wrefresh(input_win);
+                    break;
+                default: break;
+            }
+        }
     }
+    if(cursor_state == 0)curs_set(0);
 
-    return(1);
+    echo();
+    keypad(input_win, FALSE);
+    nocbreak();
+
+    return(ret);
 }
 
 ui_menu_e ncgui_display_login_page(void)
 {
     account_entry_t local_account;
     slider_t login_slider;
-    char temp_str[32] = {0};
     int df_posx = GREET_ROW+4, df_posy = 16;
     int op_key = LOCAL_KEY_NON_SENSE;
-    int pos = 0;
+    char errInfo[ERROR_INFO_LEN+1] = {0};
+    WINDOW *name_win, *pw_win;
 
     //显示界面
-    draw_login_framework();
+    draw_login_framework(&name_win, &pw_win);
 
     //设置滑块
     login_slider.win = stdscr;
@@ -2160,41 +2207,64 @@ ui_menu_e ncgui_display_login_page(void)
 
     memset(&local_account, '\0', sizeof(account_entry_t));
     while(op_key != KEY_BACKSPACE){
-        op_key = get_choice(page_login_e, &login_slider, 3);
+        if(op_key != KEY_ENTER)
+            op_key = get_choice(page_login_e, &login_slider, 3);
         if(op_key == KEY_ENTER || op_key == '\n'){
-            switch(login_slider.current_row)
-            {
+            op_key = LOCAL_KEY_NON_SENSE;
+            switch(login_slider.current_row){
                 case lg_option_name:
-                    memset(temp_str, '\0', sizeof(temp_str));
-                    curs_set(1);
-                    do{
-                        clear_line(NULL, df_posx, df_posy+12, 1, 22);
-                        move(df_posx, df_posy+12);
-                        keypad(stdscr, TRUE);
-                        getnstr(temp_str, DEFAULT_PW_LEN);
-                        keypad(stdscr, FALSE);
-                    }while(!check_login_input(temp_str, lg_option_name));
-                    if(cursor_state == 0)curs_set(0);
-                    strcpy(local_account.name, temp_str);
+                    //clear_line(NULL, PROMPT_ROW, 1, 1, WIN_WIDTH-2);
+                    if(!get_login_input(name_win, local_account.name, lg_option_name))break;
+                    //滑块移向密码
+                    login_slider.last_row = login_slider.current_row;
+                    login_slider.current_row++;
+                    move_slider(&login_slider, 0);
+                    if(local_account.password[0] == '\0')
+                        op_key = KEY_ENTER;
                     break;
                 case lg_option_password:
-                    memset(temp_str, '\0', sizeof(temp_str));
-                    cbreak();
-                    noecho();
-                    while(){
-                        temp_str[pos] = getch();
-                        if(temp_str )
-                    }
+                    //clear_line(NULL, PROMPT_ROW, 1, 1, WIN_WIDTH-2);
+                    //滑块移向登录
+                    if(!get_login_input(pw_win, local_account.password, lg_option_password))break;
+                    login_slider.last_row = login_slider.current_row;
+                    login_slider.current_row++;
+                    move_slider(&login_slider, 0);
                     break;
                 case lg_option_login:
+                    //clear_line(NULL, PROMPT_ROW, 1, 1, WIN_WIDTH-2);
+                    if(local_account.name[0] == '\0'){
+                        error_line("帐号不能为空");
+                    }else if(local_account.password[0] == '\0'){
+                        error_line("请输入密码");
+                    }else{
+                        local_account.type = account_user_e;
+                        if(!client_start_login("127.0.0.1", &local_account, errInfo)){
+                            //登录失败清空密码
+                            error_line(errInfo);
+                            local_account.password[0] = '\0';
+                            wclear(pw_win);
+                            login_slider.last_row = login_slider.current_row;
+                            login_slider.current_row = 1;
+                            move_slider(&login_slider, 0);
+                            op_key = KEY_ENTER;
+                        }else{
+                            error_line("登录成功!");
+                            sleep(1);
+                            return(menu_non_sense_e);
+                        }
+                    }
                     break;
                 case lg_option_register:
+                    //client_register_account(account_entry_t *user_account, char *errInfo);
                     break;
                 default: break;
             }
         }
     }
     
-    getch();
+    delwin(name_win);
+    delwin(pw_win);
+    refresh();
+
     return(menu_quit_e);
 }
