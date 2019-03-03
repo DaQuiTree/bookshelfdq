@@ -118,6 +118,7 @@ char *searchbook_option[] ={
 book_count_t gui_bc;
 shelf_count_t gui_sc;
 int cursor_state = 0;
+int global_pw_verified = 0;
 
 //通用函数
 static int get_choice(ui_page_type_e ptype, slider_t *sld, int logic_row_max);
@@ -129,6 +130,7 @@ static int get_confirm(const char *prompt, char *option_default);
 static char *string_filter(char *fstr, char ch_sub);
 static int string_splitter(char *des_str, int des_len, char *src_str, int part_pos, char ch_aim);
 static char *limit_str_width(const char *oldstr, char *newstr, int limit);
+static int verify_identity(void);
 
 //浏览书架相关
 static ui_menu_e display_lookthrough_page(int select_mode);
@@ -165,6 +167,10 @@ static int check_shelf_name(char *name);
 static void draw_shelf_profile(WINDOW *win, int nfloors, unsigned char depthArr[]);
 static void set_shelf_parameter(WINDOW *win, int nfloors, unsigned char depthArr[]);
 
+//登录界面相关
+static void draw_login_framework(WINDOW **nWin, WINDOW **pWin, int mode);
+static int check_login_input_char(char *input_str, int input_ch, ui_login_option_e login_opt);
+int get_login_input(WINDOW *input_win, char *input_str, ui_login_option_e login_opt);
 
 //
 //实现部分
@@ -282,6 +288,8 @@ void ncgui_display_mainmenu_page(void)
 
 ui_menu_e ncgui_display_lookthrough_page(void)
 {
+    //清屏
+    ncgui_clear_all_screen();
     return(display_lookthrough_page(0));
 }
 
@@ -299,6 +307,9 @@ ui_menu_e ncgui_display_searchbook_page(void)
     slider_t kb_slider;
     int kb_key = LOCAL_KEY_NON_SENSE;
     int op_key = LOCAL_KEY_NON_SENSE;
+
+    //清屏
+    ncgui_clear_all_screen();
 
     //初始化搜索结构
     memset(&local_book, '\0', sizeof(book_entry_t));
@@ -373,6 +384,12 @@ ui_menu_e ncgui_display_buildshelf_page(void)
     int select_key = LOCAL_KEY_NON_SENSE;
     unsigned char depth_record[MAX_FLOORS] = {0};
     int rt_menu = menu_non_sense_e;
+
+    //验证用户身份
+    if(!verify_identity())return(menu_non_sense_e);
+
+    //清屏
+    ncgui_clear_all_screen();
 
     //显示标题
     mvprintw(TITLE_ROW, WIN_WIDTH/2-8, menu_option[menu_build_shelf_e]);
@@ -953,7 +970,7 @@ static ui_menu_e display_lookthrough_page(int select_mode)
                 }
                 op_key = LOCAL_KEY_NON_SENSE;
                 destroy_lt_option_box(&opwin);
-                if(lt_key != KEY_BACKSPACE){//返回主界面不再更新本界面
+                if(lt_key != KEY_BACKSPACE){//更新当前界面
                     move_slider(&lt_slider, 0);
                     clidb_shelf_get(clidb_shelf_realno(lt_slider.current_row+1), &local_shelf);
                     client_shelf_count_book(local_shelf.code, &local_count);
@@ -1187,47 +1204,52 @@ static int display_bookinfo_page(shelf_entry_t *user_shelf, int collect_mode, bo
                         //获取用户选择
                         op_key = get_choice(page_bookinfo_e, &op_slider, op_slider.max_row);
                         if(op_key == KEY_ENTER || op_key == '\n'){
-                            switch(op_slider.current_row+option_offset){
-                                case bi_option_reading:
-                                    if(client_shelf_moving_book(local_shelfno, &local_book, cur_dbm_pos, 0))
-                                        error_line("借阅成功!");
-                                    else    
-                                        error_line("借阅失败...");
-                                    break;
-                                case bi_option_borrow:
-                                    switch(client_shelf_moving_book(local_shelfno, &local_book, cur_dbm_pos, 1)){
-                                        case 2:
-                                            error_line("外借成功!");
-                                            break;
-                                        case 3:
-                                            error_line("外借失败...");
-                                            break;
-                                        case 4:
-                                            error_line("还书成功!");
-                                            break;
-                                        case 5:
-                                            error_line("还书失败...");
-                                            break;
-                                    }
-                                    break;
-                                case bi_option_tagging:
-                                    if(draw_bi_tagging_box(&local_book, GREET_ROW+8, WIN_WIDTH-PAD_BOXED_WIDTH)){
-                                        if(client_shelf_tagging_book(local_shelfno, &local_book, cur_dbm_pos))
-                                            error_line("打标签成功!");
-                                        else
-                                            error_line("打标签失败...");
-                                    }
-                                    break;
-                                case bi_option_delete:
-                                    if(get_confirm("即将删除?", "No")){
-                                        if(client_shelf_delete_book(&local_book, cur_dbm_pos))
-                                            error_line("下架图书成功!");
-                                        else
-                                            error_line("下架图书失败...");
-                                    }
-                                    break;
-                                default: break; }
-                            op_key = KEY_BACKSPACE;
+                            //验证用户身份
+                            if(verify_identity()){
+                                switch(op_slider.current_row+option_offset){
+                                    case bi_option_reading:
+                                        if(client_shelf_moving_book(local_shelfno, &local_book, cur_dbm_pos, 0))
+                                            error_line("借阅成功!");
+                                        else    
+                                            error_line("借阅失败...");
+                                        break;
+                                    case bi_option_borrow:
+                                        switch(client_shelf_moving_book(local_shelfno, &local_book, cur_dbm_pos, 1)){
+                                            case 2:
+                                                error_line("外借成功!");
+                                                break;
+                                            case 3:
+                                                error_line("外借失败...");
+                                                break;
+                                            case 4:
+                                                error_line("还书成功!");
+                                                break;
+                                            case 5:
+                                                error_line("还书失败...");
+                                                break;
+                                        }
+                                        break;
+                                    case bi_option_tagging:
+                                        if(draw_bi_tagging_box(&local_book, GREET_ROW+8, WIN_WIDTH-PAD_BOXED_WIDTH)){
+                                            if(client_shelf_tagging_book(local_shelfno, &local_book, cur_dbm_pos))
+                                                error_line("打标签成功!");
+                                            else
+                                                error_line("打标签失败...");
+                                        }
+                                        break;
+                                    case bi_option_delete:
+                                        if(get_confirm("即将删除?", "No")){
+                                            if(client_shelf_delete_book(&local_book, cur_dbm_pos))
+                                                error_line("下架图书成功!");
+                                            else
+                                                error_line("下架图书失败...");
+                                        }
+                                        break;
+                                    default: break; 
+                                }
+                                op_key = KEY_BACKSPACE;
+                            }
+                            
                         } 
                     }
                     op_key = LOCAL_KEY_NON_SENSE;
@@ -1326,6 +1348,9 @@ static int add_newbook_page(shelf_entry_t *user_shelf)
     int i = 0;
     char errInfo[ERROR_INFO_LEN+1] = {0};
 
+    //验证用户身份
+    if(!verify_identity())return(LOCAL_KEY_NON_SENSE);
+
     ncgui_clear_all_screen();
 
     mvprintw(TITLE_ROW, WIN_WIDTH/2-6, "上 架 新 书 ✎"); 
@@ -1386,6 +1411,8 @@ static int add_newbook_page(shelf_entry_t *user_shelf)
                     if(get_confirm("数据将被上传,确定?", "No")){
                         if(client_shelf_insert_book(&local_book, errInfo)){
                             error_line("上架图书成功!");
+                            sleep(1);
+                            clear_line(NULL, PROMPT_ROW, 1, 1, WIN_WIDTH-2);
                             if(get_confirm("继续输入?", "Yes")){
                                 memset(&local_book, '\0', sizeof(book_entry_t));
                                 clear_line(NULL, pad_posx, pad_posy+8, 16, 40);
@@ -1700,6 +1727,8 @@ static int delete_shelf_page(shelf_entry_t *user_shelf, book_count_t *sc)
     slider_t op_slider;
     int op_key = LOCAL_KEY_NON_SENSE;
 
+    //验证用户身份
+    if(!verify_identity())return(LOCAL_KEY_NON_SENSE);
 
     if(!get_confirm("即将删除书架,继续?","No"))
         return(LOCAL_KEY_NON_SENSE);
@@ -1901,11 +1930,18 @@ static void scroll_pad(slider_t *sld, int logic_row, int *nline)
 //选择与提示
 static int get_choice(ui_page_type_e ptype, slider_t *sld, int logic_row)
 {
+    static ui_page_type_e current_page = page_nonsense_e;
     int key = 0;
 
     keypad(stdscr, TRUE);
     cbreak();
     noecho();
+
+    //更新当前页面记录,验证密码失效
+    if(current_page != ptype){
+        current_page = ptype;
+        global_pw_verified = 0;
+    };
 
     while(key != KEY_ENTER && key != '\n' && key != KEY_BACKSPACE){ 
         key = getch();
@@ -1955,6 +1991,7 @@ static int get_confirm(const char *prompt, char* option_default)
     if(option_default[0] == 'E'){//仅基本显示提示
         clear_line(NULL, Q_ROW, 1, 1, WIN_WIDTH-2);
         mvprintw(Q_ROW, 8, "%s", prompt);
+        refresh();
         return (1);
     }
 
@@ -1994,6 +2031,43 @@ static int get_confirm(const char *prompt, char* option_default)
     }
 
     return confirmed;
+}
+
+//用户验证身份
+static int verify_identity(void)
+{
+    WINDOW *ver_win;
+    account_entry_t local_account;
+    char errInfo[ERROR_INFO_LEN + 1];
+    int df_posx = Q_ROW, df_posy = 20;
+
+    memset(&local_account, '\0', sizeof(account_entry_t));
+    if(global_pw_verified)return(1);
+    ver_win = newwin(1, 21, df_posx, df_posy);
+    get_confirm("请验证密码: ", "Empty");
+    if(get_login_input(ver_win, local_account.password, lg_option_password)){
+        clear_line(NULL, Q_ROW, 1, 1, WIN_WIDTH-2);
+        strcpy(local_account.name, login_user);
+        local_account.type = account_user_e;
+        if(client_verify_account(&local_account, 0, errInfo)){
+            global_pw_verified = 1;
+            error_line("验证通过");
+            sleep(1);
+            clear_line(NULL, PROMPT_ROW, 1, 1, WIN_WIDTH-2);
+            delwin(ver_win);
+            return(1);
+        }else{
+            error_line(errInfo);
+        }
+    }
+
+    clear_line(NULL, Q_ROW, 1, 1, WIN_WIDTH-2);
+    sleep(1);
+    clear_line(NULL, PROMPT_ROW, 1, 1, WIN_WIDTH-2);
+
+    delwin(ver_win);
+
+    return(0);
 }
 
 static void clear_line(WINDOW* win, int startx, int starty, int nlines, int line_width)
@@ -2204,7 +2278,7 @@ void ncgui_display_register_page(void)
     int df_posx = GREET_ROW+4, df_posy = 16;
     memset(&local_account, '\0', sizeof(account_entry_t));
     int op_key = LOCAL_KEY_NON_SENSE, running = 1;
-    char temp_str[BCRYPT_HASHSIZE + 1];
+    char temp_str[USER_NAME_LEN + 1];
     char errInfo[ERROR_INFO_LEN+1] = {0};
 
     //显示界面
@@ -2309,6 +2383,10 @@ ui_menu_e ncgui_display_login_page(void)
     while(op_key != KEY_BACKSPACE){
         if(op_key != KEY_ENTER)
             op_key = get_choice(page_login_e, &login_slider, 3);
+        if(op_key == KEY_BACKSPACE){
+            clear_line(NULL, PROMPT_ROW, 1, 1, WIN_WIDTH-2);
+            if(!get_confirm("退出登录?", "No"))op_key = LOCAL_KEY_NON_SENSE;
+        }
         if(op_key == KEY_ENTER || op_key == '\n'){
             op_key = LOCAL_KEY_NON_SENSE;
             switch(login_slider.current_row){

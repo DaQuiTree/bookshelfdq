@@ -64,9 +64,8 @@ typedef struct{
 }account_entry_t;
 
 
-
 //socket通讯相关
-#define USER_NAME_LEN (64) 
+#define USER_NAME_LEN (BCRYPT_HASHSIZE) 
 #define ERR_TEXT_LEN (80)
 #define EXTRA_INFO_SIZ (4)
 

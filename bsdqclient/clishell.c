@@ -295,8 +295,12 @@ int client_shelf_insert_book(book_entry_t *user_book, char *errInfo)
     time_t the_time;
 
     memset(&msg, '\0', sizeof(message_cs_t));
+
     //信息不完整
-    if((user_book->name[0] && user_book->author[0] && user_book->code[1]) == 0)return 0;
+    if((user_book->name[0] && user_book->author[0] && user_book->code[1]) == 0){
+        strcpy(errInfo, "书籍信息不完整");
+        return 0;
+    }
 
     //记录时间
     (void)time(&the_time);

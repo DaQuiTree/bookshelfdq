@@ -206,8 +206,8 @@ int srvdb_book_insert(message_cs_t *msg)
                 if(bookno_used >= MAX_BOOK_NUM){
                     sprintf(msg->error_text, "上架失败:图书数量达到上限");
                     return(0);
-                }
-                msg->stuff.book.code[2] = bookno_used+1;
+                } 
+                msg->stuff.book.code[2] = ++bookno_used;
             }
         }else{
 #if DEBUG_TRACE
@@ -647,7 +647,7 @@ int srvdb_shelf_build(message_cs_t *msg)
                     sprintf(msg->error_text, "打造失败:书架达到上限");
                     return(0);
                 }
-                msg->stuff.shelf.code = shelfno_used+1;
+                msg->stuff.shelf.code = ++shelfno_used;
             }
         }else{
 #if DEBUG_TRACE
