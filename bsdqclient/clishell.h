@@ -9,6 +9,7 @@ int client_start_register(char *host, account_entry_t *user_account, char *errIn
 int client_shelves_info_sync(shelf_count_t *sc);
 int client_shelves_count_sync(shelf_count_t *sc); 
 int client_books_count_sync(book_count_t *bc); 
+void client_persist_signals(void);
 
 //搜索图书请求
 int client_searching_book(int bookno, book_entry_t *search_entry);

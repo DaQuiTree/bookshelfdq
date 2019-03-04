@@ -1,0 +1,31 @@
+当前文件显示已修复的bug记录
+
+Alpha2.0版本
+1.bug1:检索时，所属一行显示书籍名，实际应当显示书架名。
+    文件:ncgui.c
+    行数:1318
+    函数:...show_book_info(...)
+
+2.bug2:检索后，操作浏览书架->打开，不能获取到图书信息。
+    文件:ncgui.c
+    行数:1094
+    函数:...display_bookinfo_page(...)
+
+3.bug3:名称过长分割线字符漂移
+    文件:ncgui.c
+    处理方法:增加了所有prefresh函数的显示宽度
+
+4.bug4:上新图书结束，浏览书架会出现重复新书
+    文件:ncgui.c
+    处理方法:增加了flag,上新图书后清空缓存
+
+5.bug5:作者字符长度显示超出外框
+    文件:ncgui.c
+    函数:...display_bookinfo_page(...)
+    处理方法:减少字符长度标准
+
+6.bug6:无法退出搜索结果界面
+    文件:ncgui.c
+    行数:1278
+    函数:...display_bookinfo_page(...)
+    

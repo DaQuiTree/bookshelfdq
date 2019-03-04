@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 #include <time.h>
 
 #include "socketcom.h"
@@ -283,6 +284,11 @@ int client_shelves_info_sync(shelf_count_t *sc)
 }
 
 
+void client_persist_signals(void)
+{
+    (void)signal(SIGINT, SIG_IGN);
+}
+
 //
 //封装client端的socket请求
 //
@@ -313,10 +319,9 @@ int client_shelf_insert_book(book_entry_t *user_book, char *errInfo)
     msg.stuff.book = *user_book; msg.stuff.book.code[2] = NON_SENSE_INT;
 
     res = find_from_server(&msg);
-    if(res == 1)
-        clidb_book_insert(&msg.stuff.book, -1);
-    else
-        strcpy(errInfo, msg.error_text);
+
+    if(res == 0)strcpy(errInfo, msg.error_text);
+
     return(res);
 }
 
