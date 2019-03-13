@@ -13,7 +13,6 @@
 #include "srvdb.h"
 
 static int server_sockfd = -1;
-static int client_sockfd = -1;
 
 static fd_set readfds, recordfds;
 static int max_fd_num = 0;

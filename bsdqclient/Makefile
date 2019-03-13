@@ -1,10 +1,10 @@
-all: testshell #test_clidb bsdq_server bsdq_client srvdbmain
+all: bookMan #test_clidb bsdq_server bsdq_client srvdbmain
 
 CC = gcc
 CFLAGS = -Wall -pedantic
 
 #Debug Flags
-DFLAGS = -g -DDEBUG_TRACE=1
+#DFLAGS = -g -DDEBUG_TRACE=1
 
 #MYSQL
 MYSQL_INC_PATH = /usr/include/mysql
@@ -19,30 +19,28 @@ DBM_LIB_FILE = -lgdbm_compat -lgdbm
 NC_INC_PATH = /usr/include/ncursesw
 NC_LIB_FILE = -lncursesw
 
+#password strength
+#CRACKLIB
+CRACKLIB = /usr/local/share/cracklib/pw_dict
+CRACKLIB_LIB_FILE = -lcrack
+CRFLAGS = -DHAVE_CRACKLIB -DCRACKLIB_DICTPATH="\"$(CRACKLIB)\""
 
-srvdbmain: srvdb.o srvdbmain.o
-	$(CC) $(CFLAGS) $(DFLAGS) -o srvdbmain -I$(MYSQL_INC_PATH)  $^ $(MYSQL_LIB_FILE) -L$(MYSQL_LIB_PATH) 
-bsdq_server: bsdq_server.o socketcom.o srvdb.o
-	$(CC) $(CFLAGS) $(DFLAGS) -o bsdq_server -I$(MYSQL_INC_PATH) $^ $(MYSQL_LIB_FILE) -L$(MYSQL_LIB_PATH)
-bsdq_client: bsdq_client.o socketcom.o srvdb.o
-	$(CC) $(CFLAGS) $(DFLAGS) -o bsdq_client -I$(MYSQL_INC_PATH) $^  $(MYSQL_LIB_FILE) -L$(MYSQL_LIB_PATH)
-test_clidb: test_clidb.o clidb.o
-	$(CC) $(CFLAGS) $(DFLAGS) -o test_clidb -I$(DBM_INC_PATH) $^ $(DBM_LIB_FILE)
-testshell: testshell.o clishell.o clidb.o ncgui.o ../bsdqserver/socketcom.o ../bsdqserver/srvdb.o ../bsdqserver/libbcrypt/bcrypt.a
-	$(CC) $(CFLAGS) $(DFLAGS) -o testshell -I$(DBM_INC_PATH) -I$(MYSQL_INC_PATH) -I$(NC_INC_PATH) $^ $(MYSQL_LIB_FILE) $(DBM_LIB_FILE) $(NC_LIB_FILE) -L$(MYSQL_LIB_PATH) 
+#LDAP
+LDAP_LIB = -lldap_r -llber
+LDAP_INC_PATH = /usr/local/openldap-2.4.47
+LDAP_INC = -I$(LDAP_INC_PATH)/include -I$(LDAP_INC_PATH)/servers/slapd -I$(LDAP_INC_PATH)/build-servers/include
+
+#conclude
+INCS = $(LDAP_INC) -I$(DBM_INC_PATH) -I$(MYSQL_INC_PATH) -I$(NC_INC_PATH)
+LIBS = $(LDAP_LIB) $(CRACKLIB_LIB_FILE) $(MYSQL_LIB_FILE) $(DBM_LIB_FILE) $(NC_LIB_FILE)
+
+bookMan: bookMan.o clishell.o clidb.o ncgui.o socketcli.o ../bsdqserver/libbcrypt/bcrypt.a ./check_password/check_password.o
+	$(CC) $(CFLAGS) $(CRFLAG) $(DFLAGS) -o bookMan $(INCS) $^ $(LIBS) -L$(MYSQL_LIB_PATH) 
 .c.o:
-	$(CC) $(CFLAGS) $(DFLAGS) -I$(MYSQL_INC_PATH) -I$(NC_INC_PATH) -c $<
-
-#socketcom.o: socketcom.c socketcom.h clisrv.h srvdb.h 
-#srvdbmain.o: srvdbmain.c clisrv.h srvdb.h
-#bsdq_server.o: bsdq_server.c socketcom.h clisrv.h srvdb.h
-#bsdq_client.o: bsdq_client.c socketcom.h clisrv.h
-#clidb.o:clidb.c clisrv.h clidb.h
-#test_clidb.o: test_clidb.c clisrv.h clidb.h
-#clishell.o: clishell.c clisrv.h clidb.h clishell.h
+	$(CC) $(CFLAGS) $(DFLAGS) $(INCS) -c $<
 
 .PHONY += clean
 
 clean: 
-	rm -rf *.o bsdq_cache bsdq_server bsdq_client srvdbmain test_clidb testshell
+	rm -rf *.o bsdq_cache bookMan
 

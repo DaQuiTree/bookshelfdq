@@ -3,12 +3,16 @@
 #include <string.h>
 #include <curses.h>
 #include <locale.h>
+#include <ctype.h>
+#include <portable.h>
+#include <slap.h>
 
 #include "ncgui.h"
 #include "clisrv.h"
 #include "clishell.h"
 #include "socketcom.h"
 #include "clidb.h"
+#include "./check_password/check_password.h"
 
 char HEX_ASC[] = {'0', '1', '2', '3',\
                   '4', '5', '6', '7',\
@@ -2275,6 +2279,23 @@ int get_login_input(WINDOW *input_win, char *input_str, ui_login_option_e login_
     return(ret);
 }
 
+int check_password_strength(char* to_check)
+{
+    char *errmsg = NULL;
+    Entry pEntry;
+
+    pEntry.e_name.bv_val = "USER";
+    int ret = check_password(to_check, &errmsg, &pEntry);
+
+#if DEBUG_TRACE
+    if(strcmp(errmsg, "") != 0)
+        fprintf(stderr, "Check password error: %s\n", errmsg);
+#endif
+    ber_memfree(errmsg);
+
+    return(ret);
+}
+
 void ncgui_display_register_page(void)
 {
     account_entry_t local_account;
@@ -2285,6 +2306,7 @@ void ncgui_display_register_page(void)
     int op_key = LOCAL_KEY_NON_SENSE, running = 1;
     char temp_str[USER_NAME_LEN + 1];
     char errInfo[ERROR_INFO_LEN+1] = {0};
+    int ret;
 
     //显示界面
     draw_login_framework(&name_win, &pw_win, 1);
@@ -2318,18 +2340,25 @@ void ncgui_display_register_page(void)
                     wrefresh(pw_win);
                     local_account.password[0] = '\0';
                     if(get_login_input(pw_win, local_account.password, lg_option_password)){
-                        get_confirm("请再次输入密码", "Empty");
-                        wclear(pw_win);
-                        wrefresh(pw_win);
-                        if(get_login_input(pw_win, temp_str, lg_option_password)){
-                            clear_line(NULL, Q_ROW, 1, 1, WIN_WIDTH-2);
-                            if(strcmp(temp_str, local_account.password)){//密码不一致
-                                temp_str[0] = '\0';
-                                error_line("密码不一致");
-                                break;
-                            }else{
-                                mvprintw(df_posx+2, 52, "✓ ");
+                        ret = check_password_strength(local_account.password);
+                        if(ret == 0){
+                            get_confirm("请再次输入密码", "Empty");
+                            wclear(pw_win);
+                            wrefresh(pw_win);
+                            if(get_login_input(pw_win, temp_str, lg_option_password)){
+                                clear_line(NULL, Q_ROW, 1, 1, WIN_WIDTH-2);
+                                if(strcmp(temp_str, local_account.password)){//密码不一致
+                                    temp_str[0] = '\0';
+                                    error_line("密码不一致");
+                                    break;
+                                }else{
+                                    mvprintw(df_posx+2, 52, "✓ ");
+                                }
                             }
+                        }else if(ret == 1){
+                            error_line("密码过于简单");
+                        }else if(ret == 2){
+                            error_line("密码不能太接近单词");
                         }
                     }
                     break;
