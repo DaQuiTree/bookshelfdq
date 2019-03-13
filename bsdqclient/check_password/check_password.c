@@ -347,8 +347,8 @@ check_password (char *pPasswd, char **ppErrStr, Entry *pEntry)
 	int min_lower = 1;
 	int min_upper = 1;
 	int min_digit = 1;
-	int min_punct = 1;
-    int max_consecutive_per_class = 5;
+	int min_punct = 0;
+    int max_consecutive_per_class = 0;
 	int nQuality = 0;
 	int i;
 

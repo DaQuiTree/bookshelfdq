@@ -38,6 +38,16 @@ int socket_srv_init(void)
     server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
     server_addr.sin_port = htons(bsdqsrv_port);
 
+    //设置套接字选项避免地址使用错误
+    int on = 1;
+    result = setsockopt(server_sockfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+    if( result < 0 ){
+#if DEBUG_TRACE
+        perror("setsockopt()");
+#endif
+        return(0);
+    }
+
     result = bind(server_sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr));
     if( result == -1 ){
 #if DEBUG_TRACE
