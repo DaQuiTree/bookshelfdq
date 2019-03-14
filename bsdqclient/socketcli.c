@@ -7,9 +7,12 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <openssl/aes.h>
 
 #include "socketcom.h"
 #include "clisrv.h"
+
+#include "aes/aes_options.h"
 
 static int client_sockfd = -1;
 
@@ -21,7 +24,6 @@ int socket_client_init(char *host)
     int res;
     struct sockaddr_in server_addr;
 
-
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = inet_addr(host);
     server_addr.sin_port = htons(bsdqsrv_port);
@@ -32,6 +34,7 @@ int socket_client_init(char *host)
 #if DEBUG_TRACE
         perror("socket()");
 #endif 
+        getchar();
         return(0);
     }
 
@@ -40,6 +43,17 @@ int socket_client_init(char *host)
 #if DEBUG_TRACE
         perror("connect()");
 #endif 
+        getchar();
+        return(0);
+    }
+
+    //初始化AES加密
+    res = AES_init();
+    if( res == 0 ){
+#if DEBUG_TRACE
+        fprintf(stderr, "AES_INIT() failed.\n");
+#endif
+        getchar();
         return(0);
     }
 
@@ -55,7 +69,9 @@ void socket_client_close(void)
 
 int socket_client_send_request(message_cs_t *msg)
 {
-    int nwrite;
+    int nwrite, encrypt_size;
+    unsigned char encrypt_stream[BUFSIZ];
+    int msg_size = sizeof(message_cs_t);
     
     if(client_sockfd == -1){
 #if DEBUG_TRACE
@@ -63,7 +79,16 @@ int socket_client_send_request(message_cs_t *msg)
 #endif
         return 0;
     }
-    nwrite = write(client_sockfd, msg, sizeof(message_cs_t));
+
+    //加密传输
+    encrypt_size = encrypt((unsigned char *)msg, msg_size, encrypt_stream);
+    if(encrypt_size == -1){
+#if DEBUG_TRACE
+        fprintf(stderr, "socket_srv_process_request(): encrypt() failed");
+#endif
+        return 0;
+    }
+    nwrite = send(client_sockfd, encrypt_stream, encrypt_size, 0);
     if (nwrite == -1)
     {
 #if DEBUG_TRACE
@@ -74,12 +99,17 @@ int socket_client_send_request(message_cs_t *msg)
 #if DEBUG_TRACE
     fprintf(stderr, " socket_client_send_request(): client write %d bytes.\n", nwrite);
 #endif
+
     return 1;
 }
 
 int socket_client_get_response(message_cs_t *msg)
 {
-    int nread;
+    int nread, res;
+    int msg_size = sizeof(message_cs_t);
+    int encrypt_size;
+    unsigned char encrypt_stream[BUFSIZ];
+    unsigned char decrypt_stream[BUFSIZ];
 
     if(client_sockfd == -1){
 #if DEBUG_TRACE
@@ -87,7 +117,13 @@ int socket_client_get_response(message_cs_t *msg)
 #endif
         return 0;
     }
-    nread = read(client_sockfd, msg, sizeof(message_cs_t));
+
+    if(msg_size % AES_BLOCK_SIZE == 0)
+        encrypt_size = msg_size;
+    else
+        encrypt_size = (msg_size/AES_BLOCK_SIZE + 1)*AES_BLOCK_SIZE;
+
+    nread = recv(client_sockfd, encrypt_stream, encrypt_size, 0);
     if (nread == -1)
     {
 #if DEBUG_TRACE
@@ -95,8 +131,27 @@ int socket_client_get_response(message_cs_t *msg)
 #endif
         return 0;
     }
+    //数据包长度错误
+    if (nread != encrypt_size){
+#if DEBUG_TRACE
+        fprintf(stderr, "socket_srv_process_request(): bytes read doesn't match required.");
+#endif
+        return 0;
+    }
+
+    //数据包解密
+    res = decrypt(encrypt_stream, decrypt_stream, nread);         
+    if(res == -1){
+#if DEBUG_TRACE
+        fprintf(stderr, "socket_srv_process_request(): decrypt() failed");
+#endif
+        return 0;
+    }
+    memcpy((unsigned char *)msg, decrypt_stream, msg_size);
+
 #if DEBUG_TRACE
     fprintf(stderr, "socket_client_get_response(): read %d bytes.\n", nread);
 #endif
+
     return 1;
 }

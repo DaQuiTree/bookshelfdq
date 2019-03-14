@@ -1,8 +1,8 @@
 #include <unistd.h>
-#include <stdio.h>
-#include <string.h>
 #include <curses.h>
 #include <locale.h>
+#include <stdio.h>
+#include <string.h>
 #include <ctype.h>
 #include <portable.h>
 #include <slap.h>
@@ -12,7 +12,7 @@
 #include "clishell.h"
 #include "socketcom.h"
 #include "clidb.h"
-#include "./check_password/check_password.h"
+#include "check_password/check_password.h"
 
 char HEX_ASC[] = {'0', '1', '2', '3',\
                   '4', '5', '6', '7',\

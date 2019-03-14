@@ -7,10 +7,12 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <openssl/aes.h>
 
 #include "socketcom.h"
 #include "clisrv.h"
 #include "srvdb.h"
+#include "aes/aes_options.h"
 
 static int server_sockfd = -1;
 
@@ -64,10 +66,20 @@ int socket_srv_init(void)
         return(0);
     }
 
+    //初始化AES加密
+    result = AES_init();
+    if( result == 0 ){
+#if DEBUG_TRACE
+        fprintf(stderr, "AES_INIT() failed.\n");
+#endif
+        return(0);
+    }
+
     FD_ZERO(&readfds);
     FD_ZERO(&recordfds);
     FD_SET(server_sockfd, &recordfds);
     max_fd_num = server_sockfd;
+
     return(1);
 }
 
@@ -155,7 +167,10 @@ int socket_srv_process_request(int client_fd)
 {
     int nread, nwrite, nrows, res;
     message_cs_t msg;
+    unsigned char encrypt_stream[BUFSIZ];
+    unsigned char decrypt_stream[BUFSIZ];
     int msg_size = sizeof(msg);
+    int encrypt_size;
 
     if(server_sockfd == -1){
 #if DEBUG_TRACE
@@ -163,10 +178,16 @@ int socket_srv_process_request(int client_fd)
 #endif
         return 0;
     }
-    
-    nread = read(client_fd, &msg, msg_size);
-    //待接收的数据长度错误
-    if (nread != msg_size){
+
+    //计算加密后的数据长度
+    if(msg_size % AES_BLOCK_SIZE == 0)
+        encrypt_size = msg_size;
+    else
+        encrypt_size = (msg_size/AES_BLOCK_SIZE + 1)*AES_BLOCK_SIZE;
+
+    nread = recv(client_fd, encrypt_stream, BUFSIZ, 0);
+    //接收的数据长度错误
+    if (nread != encrypt_size){
         if (nread < 0){
 #if DEBUG_TRACE
             perror("socket_srv_process_request(): read()");
@@ -178,7 +199,16 @@ int socket_srv_process_request(int client_fd)
 #endif
             msg.response = r_failed;
             strcpy(msg.error_text, "Server recieved incorrect num(%d) of message.");
-            nwrite = write(client_fd, &msg, msg_size);
+
+            //加密传输
+            encrypt_size = encrypt((unsigned char *)&msg, msg_size, encrypt_stream);
+            if(encrypt_size == -1){
+#if DEBUG_TRACE
+                fprintf(stderr, "socket_srv_process_request(): encrypt() failed");
+#endif
+                return 0;
+            }
+            nwrite = send(client_fd, encrypt_stream, encrypt_size, 0);
             if (nwrite < 0){
 #if DEBUG_TRACE
                 perror("socket_srv_process_request(): write()");
@@ -191,6 +221,16 @@ int socket_srv_process_request(int client_fd)
             return(1);
         }
     }
+
+    //数据包解密
+    res = decrypt(encrypt_stream, decrypt_stream, nread);         
+    if(res == -1){
+#if DEBUG_TRACE
+        fprintf(stderr, "socket_srv_process_request(): decrypt() failed");
+#endif
+        return 0;
+    }
+    memcpy((unsigned char *)&msg, decrypt_stream, msg_size);
 
     msg.response = r_success;
     msg.error_text[0] = '\0';
@@ -220,7 +260,15 @@ int socket_srv_process_request(int client_fd)
                 }else{
                     msg.response = r_success;
                 }
-                nwrite = write(client_fd, &msg, msg_size);
+                //加密传输
+                encrypt_size = encrypt((unsigned char *)&msg, msg_size, encrypt_stream);
+                if(encrypt_size == -1){
+#if DEBUG_TRACE
+                    fprintf(stderr, "socket_srv_process_request(): encrypt() failed");
+#endif
+                    return 0;
+                }
+                nwrite = send(client_fd, encrypt_stream, encrypt_size, 0);
                 if (nwrite < 0){
 #if DEBUG_TRACE
                     perror("socket_srv_process_request: write()");
@@ -258,7 +306,15 @@ int socket_srv_process_request(int client_fd)
                 }else{
                     msg.response = r_success;
                 }
-                nwrite = write(client_fd, &msg, msg_size);
+                //加密传输
+                encrypt_size = encrypt((unsigned char *)&msg, msg_size, encrypt_stream);
+                if(encrypt_size == -1){
+#if DEBUG_TRACE
+                    fprintf(stderr, "socket_srv_process_request(): encrypt() failed");
+#endif
+                    return 0;
+                }
+                nwrite = send(client_fd, encrypt_stream, encrypt_size, 0);
                 if (nwrite < 0){
 #if DEBUG_TRACE
                     perror("socket_srv_process_request(): write() ");
@@ -297,7 +353,15 @@ int socket_srv_process_request(int client_fd)
             break;
     }
 
-    nwrite = write(client_fd, &msg, msg_size);
+    //加密传输
+    encrypt_size = encrypt((unsigned char *)&msg, msg_size, encrypt_stream);
+    if(encrypt_size == -1){
+#if DEBUG_TRACE
+        fprintf(stderr, "socket_srv_process_request(): encrypt() failed");
+#endif
+        return 0;
+    }
+    nwrite = send(client_fd, encrypt_stream, encrypt_size, 0);
     if (nwrite < 0){
 #if DEBUG_TRACE
         perror("socket_srv_process_request(): write()");

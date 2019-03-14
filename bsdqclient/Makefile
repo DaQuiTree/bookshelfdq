@@ -1,4 +1,4 @@
-all: bookMan #test_clidb bsdq_server bsdq_client srvdbmain
+all:clean bookMan #test_clidb bsdq_server bsdq_client srvdbmain
 
 CC = gcc
 CFLAGS = -Wall -pedantic
@@ -30,11 +30,14 @@ LDAP_LIB = -lldap_r -llber
 LDAP_INC_PATH = /usr/local/openldap-2.4.47
 LDAP_INC = -I$(LDAP_INC_PATH)/include -I$(LDAP_INC_PATH)/servers/slapd -I$(LDAP_INC_PATH)/build-servers/include
 
+#OPENSSL
+AES_LIB_FILE = -lcrypto
+
 #conclude
 INCS = $(LDAP_INC) -I$(DBM_INC_PATH) -I$(MYSQL_INC_PATH) -I$(NC_INC_PATH)
-LIBS = $(LDAP_LIB) $(CRACKLIB_LIB_FILE) $(MYSQL_LIB_FILE) $(DBM_LIB_FILE) $(NC_LIB_FILE)
+LIBS = $(LDAP_LIB) $(CRACKLIB_LIB_FILE) $(MYSQL_LIB_FILE) $(DBM_LIB_FILE) $(NC_LIB_FILE) $(AES_LIB_FILE)
 
-bookMan: bookMan.o clishell.o clidb.o ncgui.o socketcli.o libbcrypt/bcrypt.a check_password/check_password.o
+bookMan: bookMan.o clishell.o clidb.o ncgui.o socketcli.o libbcrypt/bcrypt.a check_password/check_password.o aes/aes_options.o
 	$(CC) $(CFLAGS) $(CRFLAG) $(DFLAGS) -o bookMan $(INCS) $^ $(LIBS) -L$(MYSQL_LIB_PATH) 
 .c.o:
 	$(CC) $(CFLAGS) $(DFLAGS) $(INCS) -c $<
@@ -45,10 +48,14 @@ libbcrypt/bcrypt.a: $(wildcard libbcrypt/*.c libbcrypt/*.h)
 check_password/check_password.o: $(wildcard check_password/*.c check_password/*.h)
 	make -C check_password/
 
+aes/aes_options.o: 
+	gcc -c aes/aes_options.c;\
+	mv aes_options.o aes/
+
 .PHONY += clean
 
 clean: 
-	rm -rf *.o bsdq_cache bookMan;\
+	rm -rf *.o aes/*.o bsdq_cache bookMan;\
 	make clean -C libbcrypt/;\
 	make clean -C check_password/
 
