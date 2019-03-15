@@ -12,8 +12,8 @@ int main(void)
     unsigned char randch;
     time_t the_time;
     FILE* fp;
-    char key[128];
-    char buf[8];
+    char key[128]={0};
+    char buf[8]={0};
 
     fp = fopen(CONFIG_PATH, "w+");
     if(fp == NULL){

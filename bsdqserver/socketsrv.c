@@ -88,8 +88,9 @@ void socket_srv_close(void)
     FD_ZERO(&readfds);
     FD_ZERO(&recordfds);
     max_fd_num = 0;
+    if(server_sockfd != -1)
+        close(server_sockfd);
     server_sockfd = -1;
-    close(server_sockfd);
 }
 
 int socket_srv_wait(void)
@@ -118,7 +119,7 @@ int socket_srv_fetch_client(void)
 {
     static int fd_loop = 0;
     struct sockaddr_in client_addr;
-    unsigned int addr_len;
+    unsigned int addr_len = 0;
     int newfd, nread;
 
     if(server_sockfd == -1){
@@ -168,7 +169,6 @@ int socket_srv_process_request(int client_fd)
     int nread, nwrite, nrows, res;
     message_cs_t msg;
     unsigned char encrypt_stream[BUFSIZ];
-    unsigned char decrypt_stream[BUFSIZ];
     int msg_size = sizeof(msg);
     int encrypt_size;
 
@@ -223,14 +223,13 @@ int socket_srv_process_request(int client_fd)
     }
 
     //数据包解密
-    res = decrypt(encrypt_stream, decrypt_stream, nread);         
+    res = decrypt(encrypt_stream, (unsigned char *)&msg, nread);         
     if(res == -1){
 #if DEBUG_TRACE
         fprintf(stderr, "socket_srv_process_request(): decrypt() failed");
 #endif
         return 0;
     }
-    memcpy((unsigned char *)&msg, decrypt_stream, msg_size);
 
     msg.response = r_success;
     msg.error_text[0] = '\0';

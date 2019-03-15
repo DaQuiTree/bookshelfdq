@@ -63,11 +63,10 @@ typedef struct{
     char    password[BCRYPT_HASHSIZE + 1];
 }account_entry_t;
 
-
 //socket通讯相关
-#define USER_NAME_LEN (BCRYPT_HASHSIZE) 
+#define USER_NAME_LEN (64) 
 #define ERR_TEXT_LEN (80)
-#define EXTRA_INFO_SIZ (4)
+#define EXTRA_INFO_SIZ (7)
 
 typedef union{
     shelf_entry_t shelf;
@@ -122,7 +121,12 @@ typedef struct{
 #define FETCH_RESULT_ERR (0)
 
 //全局定义
-#define SERVER_HOSTNAME ("127.0.0.1")
+#define ADMIN_DEFAULT_ACCOUNT "shelfadmin"
+#define ADMIN_DEFAULT_PW "000000" 
+#define SERVER_HOSTNAME ("138.128.197.191")
+//#define SERVER_HOSTNAME ("127.0.0.1")
+#define MYSQL_PW_LEN (16)
+
 #define BOOK_AVL (0)
 #define BOOK_DEL (1)
 #define BOOK_UNSORTED (2)

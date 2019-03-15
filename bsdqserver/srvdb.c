@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include <mysql.h>
 #include "srvdb.h"
 #include "clisrv.h"
@@ -14,7 +13,6 @@ static int res_fields = 0;
 static int res_rows = 0;
 
 static const char *my_user = "bsdq";
-static const char *my_passwd = "bsdq";
 static const char *my_bsdq_db = "bsdq_db";
 static const char *my_bsdq_accounts = "bsdq_accounts";
 
@@ -55,9 +53,9 @@ int srvdb_init(void)
     return(1);
 }
 
-int srvdb_connect(const char* hostname, unsigned int port)
+int srvdb_connect(const char* hostname, const char* password, unsigned int port)
 {
-    if (!mysql_real_connect(&my_connection, hostname, my_user, my_passwd, my_bsdq_db, port, NULL, 0))
+    if (!mysql_real_connect(&my_connection, hostname, my_user, password, my_bsdq_db, port, NULL, 0))
     {
 #if DEBUG_TRACE
         fprintf(stderr, "mysql connect error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
@@ -72,24 +70,42 @@ int srvdb_connect(const char* hostname, unsigned int port)
     return(1);
 }
 
+void srvdb_close(void)
+{
+    mysql_close(&my_connection);
+}
+
 int srvdb_accounts_table_init(void)
 {
     char qs[1024];
     int result;
 
+    //创建账户表
     sprintf(qs, "CREATE TABLE IF NOT EXISTS %s(\
                 userno INT NOT NULL AUTO_INCREMENT,\
-                name VARCHAR(200) NOT NULL,\
-                password VARCHAR(200) NOT NULL,\
+                name VARCHAR(200) BINARY NOT NULL,\
+                password VARCHAR(200) BINARY NOT NULL,\
                 type INT NOT NULL,\
                 PRIMARY KEY (userno, name))", my_bsdq_accounts);
     result = mysql_query(&my_connection, qs);
     if (result){
 #if DEBUG_TRACE
-        sprintf("init table:%s error %d: %s\n", my_bsdq_accounts, mysql_errno(&my_connection), mysql_error(&my_connection));
+        fprintf(stderr, "init table:%s error %d: %s\n", my_bsdq_accounts, mysql_errno(&my_connection), mysql_error(&my_connection));
 #endif
         return(0);
     }
+
+    //创建默认管理员账户
+    message_cs_t msg;
+
+    strcpy(msg.user, ADMIN_DEFAULT_ACCOUNT);
+    msg.request = req_register_account_e;
+    msg.stuff.account.type = account_admin_e;
+    strcpy(msg.stuff.account.name, ADMIN_DEFAULT_ACCOUNT);
+    strcpy(msg.stuff.account.password, ADMIN_DEFAULT_PW);
+    result = srvdb_account_register(&msg);
+    if(result)
+        fprintf(stderr, "Successfully create default administor account.\n");
 
     return(1);
 }
@@ -1028,6 +1044,80 @@ int srvdb_account_register(message_cs_t *msg)
     if(!res)return(1);
 #if DEBUG_TRACE
         fprintf(stderr, "Create account error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
+#endif
+    return(0);
+}
+
+int srvdb_account_update(message_cs_t *msg)
+{
+    char es_name[BCRYPT_HASHSIZE*2 + 1];
+    char es_password[BCRYPT_HASHSIZE*2 + 1];
+    char hash_pw[BCRYPT_HASHSIZE];
+    char salt[BCRYPT_HASHSIZE];
+    char temp_str[512];
+    char is[1024];
+    int res, user_count;
+
+    if (msg->user[0] == '\0'){
+#if DEBUG_TRACE
+        fprintf(stderr, "register account error: msg user undefined.\n");
+#endif
+        return(0);
+    }
+
+    //保护字符串中的特殊字符
+    mysql_escape_string(es_name, msg->stuff.account.name, strlen(msg->stuff.account.name));
+
+    //用户名存在?
+    sprintf(is, "SELECT count(1) FROM %s where name='%s'", my_bsdq_accounts, es_name);
+    res = mysql_query(&my_connection, is);
+    if(!res) {
+        if(get_simple_result(&my_connection, temp_str)){
+            if(temp_str[0] != '\0'){
+                sscanf(temp_str, "%d", &user_count);
+                if(user_count == 0){
+                    fprintf(stderr, "更新账户失败:用户不存在");
+                    return(0);
+                }
+            }
+        }else{
+#if DEBUG_TRACE
+            fprintf(stderr, "update account error: duplicate checking error when calling get_simple_result()\n");
+#endif
+            return(0);
+        }
+    }else{
+#if DEBUG_TRACE
+        fprintf(stderr, "SELECT COUNT(1) duplicate checking error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
+#endif
+        return(0);
+    }
+
+    //产生hash
+    res = bcrypt_gensalt(BCRYPT_WORK_FACTOR, salt);
+    if(res != 0){
+#if DEBUG_TRACE
+        fprintf(stderr, "register account error: generate salt error.\n");
+#endif
+        return(0);
+    }
+
+    res = bcrypt_hashpw(msg->stuff.account.password, salt, hash_pw);
+    if(res != 0){
+#if DEBUG_TRACE
+        fprintf(stderr, "register account error: hash password error.\n");
+#endif
+        return(0);
+    }
+
+    //保护字符串中的特殊字符
+    mysql_escape_string(es_password, hash_pw, strlen(hash_pw));
+
+    sprintf(is, "UPDATE %s SET password='%s' WHERE name='%s'", my_bsdq_accounts, es_password, es_name);
+    res = mysql_query(&my_connection, is);
+    if(!res)return(1);
+#if DEBUG_TRACE
+        fprintf(stderr, "update account error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
 #endif
     return(0);
 }

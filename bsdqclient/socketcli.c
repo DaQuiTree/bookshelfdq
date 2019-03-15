@@ -109,7 +109,6 @@ int socket_client_get_response(message_cs_t *msg)
     int msg_size = sizeof(message_cs_t);
     int encrypt_size;
     unsigned char encrypt_stream[BUFSIZ];
-    unsigned char decrypt_stream[BUFSIZ];
 
     if(client_sockfd == -1){
 #if DEBUG_TRACE
@@ -123,7 +122,7 @@ int socket_client_get_response(message_cs_t *msg)
     else
         encrypt_size = (msg_size/AES_BLOCK_SIZE + 1)*AES_BLOCK_SIZE;
 
-    nread = recv(client_sockfd, encrypt_stream, encrypt_size, 0);
+    nread = recv(client_sockfd, encrypt_stream, encrypt_size, MSG_WAITALL);
     if (nread == -1)
     {
 #if DEBUG_TRACE
@@ -131,23 +130,24 @@ int socket_client_get_response(message_cs_t *msg)
 #endif
         return 0;
     }
+
     //数据包长度错误
     if (nread != encrypt_size){
 #if DEBUG_TRACE
-        fprintf(stderr, "socket_srv_process_request(): bytes read doesn't match required.");
+        fprintf(stderr, "socket_client_get_response(): bytes read doesn't match required.");
+        printf("nread: %d, encrypt_size:%d\n",nread, encrypt_size );
 #endif
         return 0;
     }
 
     //数据包解密
-    res = decrypt(encrypt_stream, decrypt_stream, nread);         
+    res = decrypt(encrypt_stream, (unsigned char *)msg, nread);         
     if(res == -1){
 #if DEBUG_TRACE
-        fprintf(stderr, "socket_srv_process_request(): decrypt() failed");
+        fprintf(stderr, "socket_client_get_response(): decrypt() failed");
 #endif
         return 0;
     }
-    memcpy((unsigned char *)msg, decrypt_stream, msg_size);
 
 #if DEBUG_TRACE
     fprintf(stderr, "socket_client_get_response(): read %d bytes.\n", nread);

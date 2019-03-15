@@ -29,3 +29,17 @@ Alpha2.0版本
     行数:1278
     函数:...display_bookinfo_page(...)
     
+Beta 1.0
+1.bug1:在远端编译bsdq_server时Accept():Invalid Arguments
+    文件:socketsrv.c
+    原因:未初始化参数 addrlen
+    处理方法:int addrlen = 0;
+
+2.bug2:远端生成.aes_key.config时文件内出现乱码
+    文件:gen_aes_key.c
+    原因:未初始化数组key
+    处理方法: 将其初始化
+
+3.bug3:修复作者名称过长显示越界问题
+    文件:ncgui.c
+    函数...show_book_info(...)

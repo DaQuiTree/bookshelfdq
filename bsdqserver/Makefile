@@ -4,7 +4,7 @@ CC = gcc
 CFLAGS = -Wall -pedantic
 
 #Debug Flags
-#DFLAGS = -g -DDEBUG_TRACE=1
+DFLAGS = -g -DDEBUG_TRACE=1
 
 #MYSQL
 MYSQL_INC_PATH = /usr/include/mysql
@@ -14,7 +14,7 @@ MYSQL_LIB_FILE = -lmysqlclient
 #OPENSSL
 AES_LIB_FILE = -lcrypto
 
-bsdq_server: bsdq_server.o socketsrv.o srvdb.o libbcrypt/bcrypt.a aes/aes_options.o
+bsdq_server: bsdq_server.o socketsrv.o srvdb.o srvshell.o libbcrypt/bcrypt.a aes/aes_options.o
 	$(CC) $(CFLAGS) $(DFLAGS) -o bsdq_server -I$(MYSQL_INC_PATH) $^ $(MYSQL_LIB_FILE) $(AES_LIB_FILE) -L$(MYSQL_LIB_PATH)
 
 .c.o:

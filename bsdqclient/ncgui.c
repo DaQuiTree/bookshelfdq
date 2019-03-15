@@ -1278,8 +1278,12 @@ static int display_bookinfo_page(shelf_entry_t *user_shelf, int collect_mode, bo
     delwin(padwin);
 
     //特殊处理搜索模式,返回退出键
-    if(search_mode)
+    if(search_mode){
         if(rt_key == LOCAL_KEY_NON_SENSE)rt_key = KEY_BACKSPACE;
+        //同步书籍信息
+        client_shelves_count_sync(&gui_sc);
+        client_books_count_sync(&gui_bc);
+    }
 
     return(rt_key);
 }
@@ -1289,7 +1293,7 @@ static void show_book_info(int startx, int starty, book_entry_t *user_book, int 
     char unique[8];
     char slabel[MAX_LABEL_NUM/2][38];
     shelf_entry_t local_shelf;
-    int str_limit = 20;
+    int str_limit = 18;
     char str_show[64]={0};
     int i = 0, j = 0;
 

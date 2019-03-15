@@ -55,7 +55,7 @@ aes/aes_options.o:
 .PHONY += clean
 
 clean: 
-	rm -rf *.o aes/*.o bsdq_cache bookMan;\
+	rm -rf *.o aes/*.o aes/.aes_key.config bsdq_cache bookMan;\
 	make clean -C libbcrypt/;\
 	make clean -C check_password/
 
