@@ -17,9 +17,11 @@ int AES_init(void)
     if(aes_has_init)return(1);
 
     // Generate AES 128-bit key
-    fp = fopen(CONFIG_PATH, "r+");
+    fp = fopen(CONFIG_PATH, "r");
     if(fp == NULL){
+#ifdef DEBUG_TRACE
         perror("fopen()");
+#endif
         return(0);
     }
     fscanf(fp, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d",\
@@ -54,7 +56,9 @@ int encrypt(unsigned char *input_string, int len, unsigned char *encrypt_string)
     for (i=0; i<AES_BLOCK_SIZE; ++i)
         iv[i] = 0;
     if (AES_set_encrypt_key(key, 128, &aes) < 0) {
+#ifdef DEBUG_TRACE
         fprintf(stderr, "Unable to set encryption key in AES\n");
+#endif
         return(-1);
     }
 
@@ -81,7 +85,9 @@ int decrypt(unsigned char *encrypt_string, unsigned char *decrypt_string, int le
     for (i=0; i<AES_BLOCK_SIZE; ++i)
         iv[i] = 0;
     if (AES_set_decrypt_key(key, 128, &aes) < 0) {
+#ifdef DEBUG_TRACE
         fprintf(stderr, "Unable to set decryption key in AES\n");
+#endif
         return(-1);
     }
 
