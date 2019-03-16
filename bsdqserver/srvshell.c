@@ -17,7 +17,7 @@ static void safty_exit(int sig)
     exit(EXIT_FAILURE);
 }
 
-int get_option(int argc, char *argv[], unsigned char *flag)
+int get_option(int argc, char *argv[], unsigned char *flag, char optarg_copy[][MAX_ARGV_LEN+1])
 {
     int opt;
 
@@ -27,13 +27,17 @@ int get_option(int argc, char *argv[], unsigned char *flag)
         {0,0,0,0}
     };
 
-    while((opt = getopt_long(argc, argv, ":ha", longopts, NULL)) != -1){
+    while((opt = getopt_long(argc, argv, ":hap:", longopts, NULL)) != -1){
         switch(opt){
             case 'h':
                 help_manul();
                 return(0);
             case 'a':
                 *flag |= RESET_FLAG;
+                break;
+            case 'p':
+                *flag |= PASSWORD_FLAG;
+                strncpy(optarg_copy[0], optarg, MAX_ARGV_LEN);
                 break;
             case '?':
                 help_manul();
@@ -46,10 +50,10 @@ int get_option(int argc, char *argv[], unsigned char *flag)
 
 void help_manul(void)
 {
-    fprintf(stdout, "\nUsage: ./bsdq_server\n");
-    fprintf(stdout, "       ./bsdq_server --admin-reset\n\n");
-    fprintf(stdout, "Arguments: \n");
-    fprintf(stdout, "       --admin-reset reset administrator password.\n\n");
+    fprintf(stdout, "\nUsage: ./bsdq_server [option] \n\n");
+    fprintf(stdout, "Options: \n");
+    fprintf(stdout, "       -p              directly input password.\n");
+    fprintf(stdout, "       --admin-reset   reset administrator password.\n\n");
 }
 
 void get_mysql_password(char *password)

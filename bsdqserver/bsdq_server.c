@@ -1,6 +1,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "clisrv.h"
 #include "socketcom.h"
 #include "srvdb.h"
@@ -8,17 +9,22 @@
 
 int main(int argc, char* argv[])
 {
+    char argvlist[MAX_ARGC_NUM][MYSQL_PW_LEN+1];
     char my_password[MYSQL_PW_LEN+1] = {0};
     int server_running = 1;
     int res;
     int client_fd;
     unsigned char optflag = 0;
 
-    if(!get_option(argc, argv, &optflag))
+    if(!get_option(argc, argv, &optflag, argvlist))
         exit(EXIT_SUCCESS);
 
-    fprintf(stdout, "Verify bsdq@mysql password: ");
-    get_mysql_password(my_password);
+    if(optflag & PASSWORD_FLAG){
+        strcpy(my_password, argvlist[0]);
+    }else{
+        fprintf(stdout, "Verify bsdq@mysql password: ");
+        get_mysql_password(my_password);
+    }
 
     if(!srvdb_init()){
         fprintf(stderr, "server database init error.\n");
