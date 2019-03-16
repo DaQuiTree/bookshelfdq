@@ -125,6 +125,8 @@ typedef struct{
 #define ADMIN_DEFAULT_PW "000000" 
 #define SERVER_HOSTNAME ("127.0.0.1")
 #define MYSQL_PW_LEN (16)
+#define MAX_ARGV_LEN (MYSQL_PW_LEN)
+#define MAX_ARGC_NUM (8)
 
 #define BOOK_AVL (0)
 #define BOOK_DEL (1)
