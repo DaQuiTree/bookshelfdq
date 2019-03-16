@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define CONFIG_PATH "aes/.aes_key.config"
+#define CONFIG_PATH "/usr/local/bookshelfdq/.aes_key.config"
 
 unsigned char key[AES_BLOCK_SIZE];        // AES_BLOCK_SIZE = 16
 int aes_has_init = 0;

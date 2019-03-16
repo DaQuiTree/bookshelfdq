@@ -53,9 +53,28 @@ aes/aes_options.o:
 	mv aes_options.o aes/
 
 .PHONY += clean
-
 clean: 
 	rm -rf *.o aes/*.o aes/.aes_key.config bsdq_cache bookMan;\
 	make clean -C libbcrypt/;\
 	make clean -C check_password/
+
+.PHONY += install
+install:
+	mkdir /usr/local/bookshelfdq 2> /dev/null;\
+	cp bookMan /usr/local/bin
+
+.PHONY += uninstall
+
+server_binpath=/usr/local/bin/bsdq_server
+client_binpath=/usr/local/bin/bookMan
+root_dir=/usr/local/bookshelfdq
+
+uninstall:
+	rm -f $(client_binpath);\
+	if [ ! -f $(server_binpath) ];\
+	then\
+		rm -rf $(root_dir);\
+	fi
+	
+
 

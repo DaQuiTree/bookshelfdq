@@ -32,3 +32,23 @@ clean:
 	rm -rf *.o bsdq_server;\
 	make clean -C libbcrypt/;\
 	make clean -C aes/
+
+.PHONY += install
+
+install:
+	mkdir /usr/local/bookshelfdq;\
+	mv aes/.aes_key.config /usr/local/bookshelfdq;\
+	cp bsdq_server /usr/local/bin/
+
+.PHONY += uninstall
+
+root_dir=/usr/local/bookshelfdq
+server_binpath=/usr/local/bin/bsdq_server
+client_binpath=/usr/local/bin/bookMan
+
+uninstall:
+	rm -f $(server_binpath);\
+	if [ ! -f $(client_binpath) ];\
+	then\
+		rm -rf $(root_dir);\
+	fi
