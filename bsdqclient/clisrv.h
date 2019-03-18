@@ -86,6 +86,7 @@ typedef enum{
     req_count_shelf_e,
     req_verify_account_e,
     req_register_account_e,
+    req_heartbeat_e
 }client_request_e;
 
 typedef enum{
@@ -104,6 +105,13 @@ typedef struct{
     int                 extra_info[EXTRA_INFO_SIZ];
 }message_cs_t; 
 
+#define HB_EXTRA_INFO_SIZ (2)
+
+typedef struct{
+    client_request_e    request;
+    server_response_e   response;
+    int extra_info[HB_EXTRA_INFO_SIZ];
+}heartbeat_cs_t;
 
 //检索相关
 #define DEFAULT_FINDS (30)
@@ -121,9 +129,13 @@ typedef struct{
 #define FETCH_RESULT_ERR (0)
 
 //全局定义
+////socket
 #define ADMIN_DEFAULT_ACCOUNT "shelfadmin"
 #define ADMIN_DEFAULT_PW "000000" 
 #define SERVER_HOSTNAME ("127.0.0.1")
+#define SOCKET_RECV_TIMEOUT (2)
+
+////server
 #define MYSQL_PW_LEN (16)
 #define MAX_ARGV_LEN (MYSQL_PW_LEN)
 #define MAX_ARGC_NUM (8)

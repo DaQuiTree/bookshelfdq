@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -15,7 +16,6 @@
 #include "aes/aes_options.h"
 
 static int client_sockfd = -1;
-
 static const unsigned short bsdqsrv_port = 51600;
 
 //client
@@ -35,6 +35,18 @@ int socket_client_init(char *host)
         perror("socket()");
 #endif 
         getchar();
+        return(0);
+    }
+
+    //设置接收超时
+    struct timeval tv;
+    tv.tv_sec = SOCKET_RECV_TIMEOUT; 
+    tv.tv_usec = 0;
+    res = setsockopt(client_sockfd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(tv));
+    if( res < 0 ){
+#if DEBUG_TRACE
+        perror("setsockopt()");
+#endif
         return(0);
     }
 
@@ -151,6 +163,42 @@ int socket_client_get_response(message_cs_t *msg)
 
 #if DEBUG_TRACE
     fprintf(stderr, "socket_client_get_response(): read %d bytes.\n", nread);
+#endif
+
+    return 1;
+}
+
+int socket_client_send_heartbeat(heartbeat_cs_t *hb)
+{
+    int nwrite, encrypt_size;
+    unsigned char encrypt_stream[BUFSIZ];
+    int hb_size = sizeof(heartbeat_cs_t);
+    
+    if(client_sockfd == -1){
+#if DEBUG_TRACE
+        fprintf(stderr, " socket_client_send_request(): client fd has not been initialize yet.\n");
+#endif
+        return 0;
+    }
+
+    //加密传输
+    encrypt_size = encrypt((unsigned char *)hb, hb_size, encrypt_stream);
+    if(encrypt_size == -1){
+#if DEBUG_TRACE
+        fprintf(stderr, "socket_srv_process_request(): encrypt() failed");
+#endif
+        return 0;
+    }
+    nwrite = send(client_sockfd, encrypt_stream, encrypt_size, 0);
+    if (nwrite == -1)
+    {
+#if DEBUG_TRACE
+        perror(" socket_client_send_request(): client write()");
+#endif
+        return 0;
+    }
+#if DEBUG_TRACE
+    fprintf(stderr, " socket_client_send_request(): client write %d bytes.\n", nwrite);
 #endif
 
     return 1;

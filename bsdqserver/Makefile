@@ -1,4 +1,4 @@
-all:clean bsdq_server #srvdbmain #bsdq_client
+all: clean prepare bsdq_server#srvdbmain #bsdq_client
 
 CC = gcc
 CFLAGS = -Wall -pedantic
@@ -28,17 +28,22 @@ aes/aes_options.o:$(wildcard aes/*.c aes/*.h)
 
 .PHONY += clean
 
+prepare:
+	echo $(shell whoami) > .make.config
+
 clean: 
-	rm -rf *.o bsdq_server;\
+	rm -rf *.o bsdq_server .make.config;\
 	make clean -C libbcrypt/;\
 	make clean -C aes/
 
 .PHONY += install
 
+cur_user = $(shell cat .make.config)
 install:
-	mkdir /usr/local/bookshelfdq;\
-	mv aes/.aes_key.config /usr/local/bookshelfdq;\
-	cp bsdq_server /usr/local/bin/
+	mkdir /usr/local/bookshelfdq 2>/dev/null ;\
+	mv aes/.aes_key.config /usr/local/bookshelfdq 2>/dev/null;\
+	cp bsdq_server /usr/local/bin/;\
+	chown -R $(cur_user):$(cur_user) /usr/local/bookshelfdq /usr/local/bin/bsdq_server
 
 .PHONY += uninstall
 

@@ -10,13 +10,13 @@
 #include "clidb.h"
 #include "clisrv.h"
 
-#define CACHE_DIR "bsdq_cache"
-#define BOOK_FILE_BASE "bsdq_cache/book_data"
-#define BOOK_FILE_DIR "bsdq_cache/book_data.dir"
-#define BOOK_FILE_PAG "bsdq_cache/book_data.pag"
-#define SHELF_FILE_BASE "bsdq_cache/shelf_data"
-#define SHELF_FILE_DIR "bsdq_cache/shelf_data.dir"
-#define SHELF_FILE_PAG "bsdq_cache/shelf_data.pag"
+#define CACHE_DIR "/usr/local/bookshelfdq/bsdq_cache"
+#define BOOK_FILE_BASE "/usr/local/bookshelfdq/bsdq_cache/book_data"
+#define BOOK_FILE_DIR "/usr/local/bookshelfdq/bsdq_cache/book_data.dir"
+#define BOOK_FILE_PAG "/usr/local/bookshelfdq/bsdq_cache/book_data.pag"
+#define SHELF_FILE_BASE "/usr/local/bookshelfdq/bsdq_cache/shelf_data"
+#define SHELF_FILE_DIR "/usr/local/bookshelfdq/bsdq_cache/shelf_data.dir"
+#define SHELF_FILE_PAG "/usr/local/bookshelfdq/bsdq_cache/shelf_data.pag"
 
 //当前登录用户
 static char current_user[USER_NAME_LEN+1];

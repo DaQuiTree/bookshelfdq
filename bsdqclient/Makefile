@@ -1,4 +1,4 @@
-all:clean bookMan #test_clidb bsdq_server bsdq_client srvdbmain
+all:clean prepare bookMan #test_clidb bsdq_server bsdq_client srvdbmain
 
 CC = gcc
 CFLAGS = -Wall -pedantic
@@ -33,9 +33,12 @@ LDAP_INC = -I$(LDAP_INC_PATH)/include -I$(LDAP_INC_PATH)/servers/slapd -I$(LDAP_
 #OPENSSL
 AES_LIB_FILE = -lcrypto
 
+#PTHREAD
+PTHREAD_LIB = -lpthread
+
 #conclude
 INCS = $(LDAP_INC) -I$(DBM_INC_PATH) -I$(MYSQL_INC_PATH) -I$(NC_INC_PATH)
-LIBS = $(LDAP_LIB) $(CRACKLIB_LIB_FILE) $(MYSQL_LIB_FILE) $(DBM_LIB_FILE) $(NC_LIB_FILE) $(AES_LIB_FILE)
+LIBS = $(LDAP_LIB) $(CRACKLIB_LIB_FILE) $(MYSQL_LIB_FILE) $(DBM_LIB_FILE) $(NC_LIB_FILE) $(AES_LIB_FILE) $(PTHREAD_LIB)
 
 bookMan: bookMan.o clishell.o clidb.o ncgui.o socketcli.o libbcrypt/bcrypt.a check_password/check_password.o aes/aes_options.o
 	$(CC) $(CFLAGS) $(CRFLAG) $(DFLAGS) -o bookMan $(INCS) $^ $(LIBS) -L$(MYSQL_LIB_PATH) 
@@ -52,16 +55,27 @@ aes/aes_options.o:
 	gcc -c aes/aes_options.c;\
 	mv aes_options.o aes/
 
+.PHONY += prepare 
+
+prepare:
+	echo $(shell whoami) > .make.config
+
 .PHONY += clean
+
 clean: 
-	rm -rf *.o aes/*.o aes/.aes_key.config bsdq_cache bookMan;\
+	rm -rf *.o aes/*.o aes/.aes_key.config bsdq_cache bookMan .make.config;\
 	make clean -C libbcrypt/;\
 	make clean -C check_password/
 
 .PHONY += install
+
+cur_user = $(shell cat .make.config)
+
 install:
 	mkdir /usr/local/bookshelfdq 2> /dev/null;\
-	cp bookMan /usr/local/bin
+	cp bookMan /usr/local/bin;\
+	chown $(cur_user):$(cur_user) /usr/local/bin/bookMan
+
 
 .PHONY += uninstall
 

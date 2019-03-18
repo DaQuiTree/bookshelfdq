@@ -29,6 +29,10 @@ int client_shelf_abandon_books(int shelfno);
 int client_shelf_unsorted_books(int shelfno);
 int client_shelf_delete_itself(int shelfno);
 
+//长连接心跳相关
+int client_stop_heartbeat_thread(void);
+int client_start_heartbeat_thread(void);
+
 //账户操作
 int client_register_account(account_entry_t *user_account, char *errInfo);
 int client_verify_account(account_entry_t *user_account, int init_mode, char *errInfo);
