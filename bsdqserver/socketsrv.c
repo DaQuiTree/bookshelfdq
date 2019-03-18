@@ -168,9 +168,11 @@ int socket_srv_process_request(int client_fd)
 {
     int nread, nwrite, nrows, res;
     message_cs_t msg;
+    
     unsigned char encrypt_stream[BUFSIZ];
     int msg_size = sizeof(msg);
-    int encrypt_size;
+    int hb_size = sizeof(heartbeat_cs_t);
+    int encrypt_size, encrypt_size_hb;
 
     if(server_sockfd == -1){
 #if DEBUG_TRACE
@@ -179,13 +181,28 @@ int socket_srv_process_request(int client_fd)
         return 0;
     }
 
+    nread = recv(client_fd, encrypt_stream, BUFSIZ, 0);
+
+    //计算加密后的心跳包长度
+    if(msg_size % AES_BLOCK_SIZE == 0)
+        encrypt_size_hb = hb_size;
+    else
+        encrypt_size_hb = (hb_size/AES_BLOCK_SIZE + 1)*AES_BLOCK_SIZE;
+
+    //如果是心跳包长度,不做处理
+    if(nread == encrypt_size_hb){
+#if DEBUG_TRACE
+        fprintf(stderr, "recieve heartbeat packet from clientfd: %d.\n", client_fd);
+#endif
+        return 1;
+    }
+
     //计算加密后的数据长度
     if(msg_size % AES_BLOCK_SIZE == 0)
         encrypt_size = msg_size;
     else
         encrypt_size = (msg_size/AES_BLOCK_SIZE + 1)*AES_BLOCK_SIZE;
 
-    nread = recv(client_fd, encrypt_stream, BUFSIZ, 0);
     //接收的数据长度错误
     if (nread != encrypt_size){
         if (nread < 0){
@@ -349,7 +366,7 @@ int socket_srv_process_request(int client_fd)
         default:
             msg.response = r_failed;
             strcpy(msg.error_text, "Undefined request type.");
-            break;
+            return 0;
     }
 
     //加密传输

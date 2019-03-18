@@ -22,9 +22,10 @@ int main()
     }while(ret_menu == menu_login_e);
     ret_menu = menu_non_sense_e;
 
-    //主界面
+    //主界面 
     if(!ncgui_sync_from_server())
         exit(EXIT_FAILURE);
+
     while(running){
         if(ret_menu != menu_cycle_e){//程序自身有循环刷新当前界面要求
             ncgui_clear_all_screen();

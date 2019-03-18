@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
+#include <pthread.h>
 #include <time.h>
 
 #include "socketcom.h"
@@ -11,8 +12,11 @@
 #include "clidb.h"
 
 char login_user[USER_NAME_LEN+1];
+pthread_t hb_thread;
+int thread_running = 1;
 
 static int find_from_server(message_cs_t *msg);
+static void *thread_heartbeat(void *arg);
 
 //
 //封装client端初始化操作
@@ -604,6 +608,37 @@ int client_verify_account(account_entry_t *user_account, int init_mode, char *er
     return(res);
 }
 
+int client_start_heartbeat_thread(void)
+{
+    int res;
+
+    res = pthread_create(&hb_thread, NULL, thread_heartbeat, NULL);
+    if (res != 0){
+#if DEBUG_TRACE
+        perror("Thread create failed");
+#endif
+        return 0;
+    }
+
+    return 1;
+}
+
+int client_stop_heartbeat_thread(void)
+{
+    void *thread_result;
+
+    thread_running = 0;
+    int res = pthread_join(hb_thread, &thread_result);
+    if (res != 0){
+#if DEBUG_TRACE
+        perror("Thread join failed");
+#endif
+        return 0;
+    }
+
+    return 1;
+}
+
 static int find_from_server(message_cs_t *msg)
 {
     int res;
@@ -647,3 +682,23 @@ static int find_from_server(message_cs_t *msg)
     return(0);
 }
 
+static void *thread_heartbeat(void *arg)
+{
+    heartbeat_cs_t hb;
+    int i = 0;
+
+    memset(&hb, '\0', sizeof(heartbeat_cs_t));
+    hb.request = req_heartbeat_e;
+
+    while(thread_running){
+        (void)socket_client_send_heartbeat(&hb);
+        while(++i <= 10){
+            sleep(1);
+            if(!thread_running)break;
+        }
+        i = 0;
+    }
+
+    pthread_exit("Nothing");
+
+}

@@ -17,6 +17,7 @@ void socket_srv_close(void);
 int socket_client_init(char* host);
 int socket_client_send_request(message_cs_t *msg);
 int socket_client_get_response(message_cs_t *msg);
+int socket_client_send_heartbeat(heartbeat_cs_t *hb);
 void socket_client_close(void);
 
 #endif

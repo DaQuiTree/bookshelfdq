@@ -185,14 +185,26 @@ int get_login_input(WINDOW *input_win, char *input_str, ui_login_option_e login_
 int ncgui_sync_from_server(void)
 {
     if(!client_shelves_info_sync(&gui_sc)){
+#if DEBUG_TRACE
         fprintf(stderr, "get client shelve info failed\n");
-        error_line("服务器同步数据异常");
+#endif
+        error_line("同步书架信息异常");
         return(0);
     }
     if(!client_books_count_sync(&gui_bc)){
+#if DEBUG_TRACE
         fprintf(stderr, "get client books info failed\n");
-        error_line("服务器同步数据异常");
+#endif
+        error_line("同步图书信息异常");
         return(0);
+    }
+
+    if(!client_start_heartbeat_thread()){
+#if DEBUG_TRACE
+        fprintf(stderr, "get client books info failed\n");
+#endif
+        error_line("心跳服务未开启");
+        sleep(1);
     }
 
     return(1);
@@ -208,6 +220,7 @@ void ncgui_init(void)
 
 void ncgui_close(void)
 {
+    (void)client_stop_heartbeat_thread();
     endwin();
 }
 
@@ -1625,8 +1638,7 @@ static int next_page_bookinfo(WINDOW *win, int *shelfno, int *bookno, book_entry
     while((res = clidb_book_get(&local_book)) != -1){
         if(!res){
             error_line(local_book.name);
-            touchwin(stdscr);
-            refresh();
+            sleep(1);
             return(-1);
         }
         limit_str_width(local_book.name, str_show, str_limit);
@@ -1643,6 +1655,7 @@ static int next_page_bookinfo(WINDOW *win, int *shelfno, int *bookno, book_entry
         res = client_shelf_loading_book(*shelfno, *bookno);//获取书架上的书籍
     if(res == 0){
         error_line("从服务器获取书籍发生异常");
+        sleep(1);
         return(-1);
     }else if(res == -1){//未获取到数据
         return(0);
