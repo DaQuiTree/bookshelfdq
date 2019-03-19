@@ -188,14 +188,14 @@ int ncgui_sync_from_server(void)
 #if DEBUG_TRACE
         fprintf(stderr, "get client shelve info failed\n");
 #endif
-        error_line("同步书架信息异常");
+        error_line("从服务器获取书架信息错误...");
         return(0);
     }
     if(!client_books_count_sync(&gui_bc)){
 #if DEBUG_TRACE
         fprintf(stderr, "get client books info failed\n");
 #endif
-        error_line("同步图书信息异常");
+        error_line("从服务器获取图书信息错误...");
         return(0);
     }
 
@@ -203,7 +203,7 @@ int ncgui_sync_from_server(void)
 #if DEBUG_TRACE
         fprintf(stderr, "get client books info failed\n");
 #endif
-        error_line("心跳服务未开启");
+        error_line("心跳服务未开启...");
         sleep(1);
     }
 
@@ -921,7 +921,11 @@ static ui_menu_e display_lookthrough_page(int select_mode)
     //滑块初始位置
     move_slider(&lt_slider, 0);
     clidb_shelf_get(clidb_shelf_realno(first_line+lt_slider.current_row+1), &local_shelf);
-    client_shelf_count_book(local_shelf.code, &local_count);
+    if(!client_shelf_count_book(local_shelf.code, &local_count)){
+        error_line("从服务器获取书架信息错误...");
+        sleep(2);
+        return(menu_non_sense_e);
+    }
     show_shelf_info(pad_posx, WIN_WIDTH-PAD_BOXED_WIDTH, &local_shelf, &local_count);
 
     //获取用户输入
@@ -931,7 +935,11 @@ static ui_menu_e display_lookthrough_page(int select_mode)
         if(lt_key == KEY_UP || lt_key == KEY_DOWN){
             //获取书架信息并显示
             clidb_shelf_get(clidb_shelf_realno(lt_slider.current_row+1), &local_shelf);
-            client_shelf_count_book(local_shelf.code, &local_count);
+            if(!client_shelf_count_book(local_shelf.code, &local_count)){
+                error_line("从服务器获取书架信息错误...");
+                sleep(2);
+                return(menu_non_sense_e);
+            }
             show_shelf_info(pad_posx, WIN_WIDTH-PAD_BOXED_WIDTH, &local_shelf, &local_count);
             //计算出滚动屏幕需要的first_line值
             scroll_pad(&lt_slider, logic_rows, &first_line);
@@ -991,7 +999,11 @@ static ui_menu_e display_lookthrough_page(int select_mode)
                 if(lt_key != KEY_BACKSPACE){//更新当前界面
                     move_slider(&lt_slider, 0);
                     clidb_shelf_get(clidb_shelf_realno(lt_slider.current_row+1), &local_shelf);
-                    client_shelf_count_book(local_shelf.code, &local_count);
+                    if(!client_shelf_count_book(local_shelf.code, &local_count)){
+                        error_line("从服务器获取书架信息错误...");
+                        sleep(2);
+                        return(menu_non_sense_e);
+                    }
                     show_shelf_info(pad_posx, WIN_WIDTH-PAD_BOXED_WIDTH, &local_shelf, &local_count);
                 }
                 refresh();
@@ -1089,12 +1101,13 @@ static int display_bookinfo_page(shelf_entry_t *user_shelf, int collect_mode, bo
     static int book_page_cnt = 0;
     static int bcollect = 0;
     static char new_mark = 0;
+    static int no_next_page_flag = 0;//图书获取完毕标志
 
     int search_mode = 0;
     int shelfno = user_shelf->code, mode_shelfno;
     WINDOW *padwin, *opwin;
     int pad_posx = GREET_ROW+2, pad_posy = 8, first_line = 0;
-    int nbooks, logic_rows, cur_dbm_pos = 0;
+    int nbooks, logic_rows, cur_dbm_pos = 0, res = 0;
     book_entry_t local_book;
     slider_t bi_slider, op_slider;
     int bi_key =  LOCAL_KEY_NON_SENSE;
@@ -1112,6 +1125,7 @@ static int display_bookinfo_page(shelf_entry_t *user_shelf, int collect_mode, bo
             local_shelfno = NON_SENSE_INT;
             local_bookno = NON_SENSE_INT;
             book_page_cnt = 0;
+            no_next_page_flag = 0;
             clidb_book_reset();
         }
     }else if((local_shelfno != shelfno && bcollect == collect_mode)\
@@ -1121,6 +1135,7 @@ static int display_bookinfo_page(shelf_entry_t *user_shelf, int collect_mode, bo
         bcollect = collect_mode;
         local_bookno = NON_SENSE_INT;
         book_page_cnt = 0;
+        no_next_page_flag = 0;
         clidb_book_reset();
     }
 
@@ -1147,7 +1162,12 @@ static int display_bookinfo_page(shelf_entry_t *user_shelf, int collect_mode, bo
     refresh();
 
     //初始化书籍信息
-    if((nbooks = next_page_bookinfo(padwin, &mode_shelfno, &local_bookno, search_entry)) == -1)return(rt_key);
+    if((nbooks = next_page_bookinfo(padwin, &mode_shelfno, &local_bookno, search_entry)) == -1){
+        if(search_mode)
+            return(KEY_BACKSPACE);
+        else
+            return(rt_key);
+    }
     if(nbooks == 0){
         if(search_mode){
             rt_key = KEY_BACKSPACE;
@@ -1186,13 +1206,27 @@ static int display_bookinfo_page(shelf_entry_t *user_shelf, int collect_mode, bo
             if(bi_key == KEY_UP || bi_key == KEY_DOWN)
                 scroll_pad(&bi_slider, logic_rows, &first_line);
             if(bi_key == KEY_RIGHT){//向后翻页
-                if(next_page_bookinfo(padwin, &mode_shelfno, &local_bookno, search_entry) > 0){
-                    book_page_cnt++;
-                    rt_key = KEY_ENTER;
-                    break;
+                if(!no_next_page_flag){
+                    res = next_page_bookinfo(padwin, &mode_shelfno, &local_bookno, search_entry);
+                    if(res == -1){//错误
+                        if(search_mode)
+                            return(KEY_BACKSPACE);
+                        else
+                            return(rt_key);
+                    }else if(res == 0){//未获取到数据
+                        no_next_page_flag = 1;
+                        error_line("已是最后一页");
+                    }else{
+                        book_page_cnt++;
+                        rt_key = KEY_ENTER;
+                        break;
+                    }
+                }else{
+                    error_line("已是最后一页");
                 }
             }else if(bi_key == KEY_LEFT){//向前翻页
                 clidb_book_backward_mode();
+                if(book_page_cnt > 0)no_next_page_flag = 0;
                 --book_page_cnt < 0 ? book_page_cnt = 0: 0;
                 rt_key = KEY_ENTER;
                 break;
@@ -1637,8 +1671,9 @@ static int next_page_bookinfo(WINDOW *win, int *shelfno, int *bookno, book_entry
     clidb_book_search_step(PAD_HIGHT);
     while((res = clidb_book_get(&local_book)) != -1){
         if(!res){
-            error_line(local_book.name);
+            error_line("从本地缓存获取图书信息错误...");
             sleep(1);
+            clear_line(NULL, PROMPT_ROW, 1, 1, WIN_WIDTH-2);
             return(-1);
         }
         limit_str_width(local_book.name, str_show, str_limit);
@@ -1648,14 +1683,15 @@ static int next_page_bookinfo(WINDOW *win, int *shelfno, int *bookno, book_entry
 
     if(nbooks > 0)return(nbooks);
 
-    //从远端获取数据
+    //从服务器获取数据
     if(search_entry != NULL)
         res = client_searching_book(*bookno, search_entry);//搜索
     else
         res = client_shelf_loading_book(*shelfno, *bookno);//获取书架上的书籍
     if(res == 0){
-        error_line("从服务器获取书籍发生异常");
-        sleep(1);
+        error_line("从服务器获取图书信息错误...");
+        sleep(2);
+        clear_line(NULL, PROMPT_ROW, 1, 1, WIN_WIDTH-2);
         return(-1);
     }else if(res == -1){//未获取到数据
         return(0);
