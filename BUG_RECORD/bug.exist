@@ -1,0 +1,2 @@
+bug1:
+当server中mysql连接timeout时，bsdq_server与mysql链接中断。检索时若遇到mysql重连,可能会出现检索结果为0但实际有数据的问题。

@@ -6,15 +6,45 @@
 #include "srvdb.h"
 #include "clisrv.h"
 
-static MYSQL my_connection;
+MYSQL my_connection;
 //和检索相关静态变量
-static MYSQL_RES *res_ptr = NULL;
-static int res_fields = 0;
-static int res_rows = 0;
+MYSQL_RES *res_ptr = NULL;
+int res_fields = 0;
+int res_rows = 0;
 
-static const char *my_user = "bsdq";
-static const char *my_bsdq_db = "bsdq_db";
-static const char *my_bsdq_accounts = "bsdq_accounts";
+const char *my_user = "bsdq";
+const char *my_bsdq_db = "bsdq_db";
+const char *my_bsdq_accounts = "bsdq_accounts";
+
+int  info_flag = 0;
+int  my_port = 0; 
+char my_hostname[32] = {0}; 
+char my_password[MYSQL_PW_LEN+1] = {0};
+
+
+static int mysql_reconnect()
+{
+    srvdb_close();
+    if(srvdb_init()){
+        if(srvdb_connect(my_hostname, my_password, my_port)){
+            fprintf(stderr, "mysql reconnect successfully.\n");
+            return(1);
+        }
+    }
+
+    fprintf(stderr, "mysql reconnect failed.\n");
+    return(0);
+}
+
+static void mysql_check_connection()
+{
+    if(mysql_errno(&my_connection) == 2006 || mysql_errno(&my_connection) == 2003){
+        if(mysql_ping(&my_connection) != 0){
+            fprintf(stderr, "mysql has lot connection...start reconnection.\n");
+            (void)mysql_reconnect();
+        }
+    }
+}
 
 static int get_simple_result(MYSQL *conn, char* res_str) 
 {
@@ -55,6 +85,21 @@ int srvdb_init(void)
 
 int srvdb_connect(const char* hostname, const char* password, unsigned int port)
 {
+    /*my_bool reconnect = 0;*/
+    /*if(mysql_options(&my_connection, MYSQL_OPT_RECONNECT, &reconnect) != 0)*/
+    /*{*/
+/*#if DEBUG_TRACE*/
+        /*fprintf(stderr, "mysql connect error: set options error\n");*/
+/*#endif*/
+        /*return(0);*/
+    /*}*/
+    if(!info_flag){
+        my_port = port; 
+        strncpy(my_hostname, hostname, 31); 
+        strncpy(my_password, password, MYSQL_PW_LEN);
+        info_flag = 1;
+    }
+
     if (!mysql_real_connect(&my_connection, hostname, my_user, password, my_bsdq_db, port, NULL, 0))
     {
 #if DEBUG_TRACE
@@ -129,6 +174,7 @@ int srvdb_user_archive_init(const char* username)
 #if DEBUG_TRACE
         sprintf("init table:%s error %d: %s\n", table_name, mysql_errno(&my_connection), mysql_error(&my_connection));
 #endif
+        mysql_check_connection();;
         return(0);
     }
     sprintf(table_name, "%s_books", username);
@@ -148,6 +194,7 @@ int srvdb_user_archive_init(const char* username)
 #if DEBUG_TRACE
         sprintf("init table:%s error %d: %s\n", table_name, mysql_errno(&my_connection), mysql_error(&my_connection));
 #endif
+        mysql_check_connection();;
         return(0);
     }
     return(1);
@@ -203,6 +250,7 @@ int srvdb_book_insert(message_cs_t *msg)
 #if DEBUG_TRACE
                     fprintf(stderr, "Insert book UPDATE error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
 #endif
+                    mysql_check_connection();;
                 }
             }
         }
@@ -210,6 +258,7 @@ int srvdb_book_insert(message_cs_t *msg)
 #if DEBUG_TRACE
         fprintf(stderr, "SELECT MIN(bookno) error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
 #endif
+        mysql_check_connection();;
     }
 
     //直接插入并自动分配编号
@@ -236,6 +285,7 @@ int srvdb_book_insert(message_cs_t *msg)
 #if DEBUG_TRACE
         fprintf(stderr, "SELECT MAX(bookno) error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
 #endif
+        mysql_check_connection();;
         return(0);
     }
          
@@ -249,6 +299,7 @@ int srvdb_book_insert(message_cs_t *msg)
         fprintf(stderr, "INSERT INTO book error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
 #endif
     sprintf(msg->error_text, "上架图书失败...");
+    mysql_check_connection();;
     return(0);
 }
 
@@ -281,6 +332,7 @@ int srvdb_book_delete(message_cs_t *msg)
     else
         fprintf(stderr, "Delete books of shelfno %d error %d: %s\n", shelfno_save, mysql_errno(&my_connection), mysql_error(&my_connection));
 #endif
+    mysql_check_connection();;
     return(0);
 }
 
@@ -331,6 +383,7 @@ int srvdb_book_update(message_cs_t *msg)
         fprintf(stderr, "Update books of shelfno %d error %d: %s\n", shelfno_save,\
                 mysql_errno(&my_connection), mysql_error(&my_connection));
 #endif
+    mysql_check_connection();;
     return(0);
 }
 
@@ -470,6 +523,7 @@ int srvdb_book_find(message_cs_t *msg, int *num_rows)
 #if DEBUG_TRACE
         fprintf(stderr, "book_find() mysql_query error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
 #endif
+        mysql_check_connection();;
     }else{
         res_ptr = mysql_store_result(&my_connection);
         if(res_ptr){
@@ -643,6 +697,7 @@ int srvdb_shelf_build(message_cs_t *msg)
 #if DEBUG_TRACE
                     fprintf(stderr, "Insert shelf UPDATE error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
 #endif
+                    mysql_check_connection();;
                 }
             }
        }
@@ -650,6 +705,7 @@ int srvdb_shelf_build(message_cs_t *msg)
 #if DEBUG_TRACE
         fprintf(stderr, "SELECT MIN(shelfno) error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
 #endif
+        mysql_check_connection();;
     }
 
     //直接插入并自动分配编号
@@ -675,6 +731,7 @@ int srvdb_shelf_build(message_cs_t *msg)
 #if DEBUG_TRACE
         fprintf(stderr, "SELECT MAX(shelfno) error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
 #endif
+        mysql_check_connection();;
         return(0);
     }
          
@@ -686,6 +743,7 @@ int srvdb_shelf_build(message_cs_t *msg)
 #if DEBUG_TRACE
         fprintf(stderr, "INSERT INTO shelf error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
 #endif
+    mysql_check_connection();;
     sprintf(msg->error_text, "打造书架失败");
     return(0);
 }
@@ -719,6 +777,7 @@ int srvdb_shelf_remove(message_cs_t *msg)
 #if DEBUG_TRACE
         fprintf(stderr, "Delete shelfno %d error %d: %s\n", shelfno_del, mysql_errno(&my_connection), mysql_error(&my_connection));
 #endif
+    mysql_check_connection();;
     return(0);
 
 }
@@ -760,6 +819,7 @@ int srvdb_shelf_update(message_cs_t *msg)
     fprintf(stderr, "Update shelfno %d error %d: %s\n", shelfno_update,\
             mysql_errno(&my_connection), mysql_error(&my_connection));
 #endif
+    mysql_check_connection();;
     return(0);
 }
 
@@ -799,6 +859,7 @@ int srvdb_shelf_find(message_cs_t *msg, int *num_rows)
 #if DEBUG_TRACE
         fprintf(stderr, "shelf_find() mysql_query error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
 #endif
+        mysql_check_connection();;
     }else{
         res_ptr = mysql_store_result(&my_connection);
         if(res_ptr){
@@ -912,6 +973,7 @@ int srvdb_account_verify(message_cs_t *msg)
 #if DEBUG_TRACE
         fprintf(stderr, "Verify account get type error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
 #endif
+        mysql_check_connection();;
         return(0);
     }
 
@@ -929,6 +991,7 @@ int srvdb_account_verify(message_cs_t *msg)
 #if DEBUG_TRACE
         fprintf(stderr, "Verify account get password error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
 #endif
+        mysql_check_connection();;
         return(0);
     }
 
@@ -988,6 +1051,7 @@ int srvdb_account_register(message_cs_t *msg)
 #if DEBUG_TRACE
         fprintf(stderr, "SELECT COUNT(1) count users error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
 #endif
+        mysql_check_connection();;
         return(0);
     }
          
@@ -1016,6 +1080,7 @@ int srvdb_account_register(message_cs_t *msg)
 #if DEBUG_TRACE
         fprintf(stderr, "SELECT COUNT(1) duplicate checking error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
 #endif
+        mysql_check_connection();;
         return(0);
     }
 
@@ -1045,6 +1110,7 @@ int srvdb_account_register(message_cs_t *msg)
 #if DEBUG_TRACE
         fprintf(stderr, "Create account error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
 #endif
+    mysql_check_connection();;
     return(0);
 }
 
@@ -1090,6 +1156,7 @@ int srvdb_account_update(message_cs_t *msg)
 #if DEBUG_TRACE
         fprintf(stderr, "SELECT COUNT(1) duplicate checking error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
 #endif
+        mysql_check_connection();;
         return(0);
     }
 
@@ -1119,5 +1186,6 @@ int srvdb_account_update(message_cs_t *msg)
 #if DEBUG_TRACE
         fprintf(stderr, "update account error %d: %s\n", mysql_errno(&my_connection), mysql_error(&my_connection));
 #endif
+    mysql_check_connection();;
     return(0);
 }
