@@ -1,4 +1,4 @@
-all:clean prepare bookMan #test_clidb bsdq_server bsdq_client srvdbmain
+all:prepare bookMan #test_clidb bsdq_server bsdq_client srvdbmain
 
 CC = gcc
 CFLAGS = -Wall -pedantic
@@ -58,12 +58,12 @@ aes/aes_options.o:
 .PHONY += prepare 
 
 prepare:
-	echo $(shell whoami) > .make.config
+	echo $(shell whoami) > make.config 
 
 .PHONY += clean
 
 clean: 
-	rm -rf *.o aes/*.o aes/.aes_key.config bsdq_cache bookMan .make.config;\
+	rm -rf *.o aes/*.o aes/.aes_key.config bsdq_cache bookMan make.config;\
 	make clean -C libbcrypt/;\
 	make clean -C check_password/
 
