@@ -146,4 +146,11 @@
    2.shell下执行bookMan，开始管理你的图书吧！
     
     
+   ### 参考程序
+    
+   [cracklib](https://github.com/cracklib/cracklib) 
+   [ppolicy-check-password](https://github.com/onyxpoint/ppolicy-check-password) 
+   [libbcrypt](https://github.com/rg3/libbcrypt)
+   
+
    
