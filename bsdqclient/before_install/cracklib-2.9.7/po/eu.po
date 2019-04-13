@@ -1,0 +1,75 @@
+# Mikel Olasagasti Uranga <mikel@olasagasti.info>, 2017. #zanata
+msgid ""
+msgstr ""
+"Project-Id-Version: cracklib 2.9.6\n"
+"Report-Msgid-Bugs-To: cracklib-devel@lists.sourceforge.net\n"
+"POT-Creation-Date: 2019-03-03 11:49-0600\n"
+"PO-Revision-Date: 2017-04-11 05:46+0000\n"
+"Last-Translator: Mikel Olasagasti Uranga <mikel@olasagasti.info>\n"
+"Language-Team: Basque\n"
+"Language: eu\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Zanata 4.6.2\n"
+"Plural-Forms: nplurals=2; plural=(n != 1)\n"
+
+#: lib/fascist.c:516
+msgid "it is based on your username"
+msgstr "zure erabiltzaile-izenean oinarrituta dago"
+
+#: lib/fascist.c:576
+msgid "it is based upon your password entry"
+msgstr ""
+
+#: lib/fascist.c:593 lib/fascist.c:601
+msgid "it is derived from your password entry"
+msgstr ""
+
+#: lib/fascist.c:613
+msgid "it is derivable from your password entry"
+msgstr ""
+
+#: lib/fascist.c:625
+msgid "it's derivable from your password entry"
+msgstr ""
+
+#: lib/fascist.c:683
+msgid "you are not registered in the password file"
+msgstr ""
+
+#: lib/fascist.c:718
+msgid "it is WAY too short"
+msgstr "OSO laburra da"
+
+#: lib/fascist.c:723
+msgid "it is too short"
+msgstr "laburregia da"
+
+#: lib/fascist.c:740
+msgid "it does not contain enough DIFFERENT characters"
+msgstr "ez ditu nahikoa karaktere EZBERDIN"
+
+#: lib/fascist.c:754
+msgid "it is all whitespace"
+msgstr "karaktere guztiak zuriuneak dira"
+
+#: lib/fascist.c:773
+msgid "it is too simplistic/systematic"
+msgstr "oso sinple edo sistematikoa"
+
+#: lib/fascist.c:778
+msgid "it looks like a National Insurance number."
+msgstr "Gizarte Segurantza zenbakia dirudi (National Insurance)"
+
+#: lib/fascist.c:810
+msgid "it is based on a dictionary word"
+msgstr "hiztegiko hitz batean oinarritua da"
+
+#: lib/fascist.c:829
+msgid "it is based on a (reversed) dictionary word"
+msgstr "hiztegiko hitz batean oinarritua da (alderantziz)"
+
+#: lib/fascist.c:874
+msgid "error loading dictionary"
+msgstr "errorea hiztegia kargatzean"

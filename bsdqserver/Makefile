@@ -29,7 +29,7 @@ aes/aes_options.o:$(wildcard aes/*.c aes/*.h)
 .PHONY += clean
 
 prepare:
-	echo $(shell whoami) > make.config
+	@echo $(shell whoami) > make.config
 
 clean: 
 	rm -rf *.o bsdq_server make.config;\

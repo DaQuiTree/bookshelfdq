@@ -42,7 +42,7 @@ LIBS = $(LDAP_LIB) $(CRACKLIB_LIB_FILE) $(MYSQL_LIB_FILE) $(DBM_LIB_FILE) $(NC_L
 
 bookMan: bookMan.o clishell.o clidb.o ncgui.o socketcli.o libbcrypt/bcrypt.a check_password/check_password.o aes/aes_options.o
 	$(CC) $(CFLAGS) $(CRFLAG) $(DFLAGS) -o bookMan $(INCS) $^ $(LIBS) -L$(MYSQL_LIB_PATH) 
-.c.o:
+.c.o: 
 	$(CC) $(CFLAGS) $(DFLAGS) $(INCS) -c $<
 
 libbcrypt/bcrypt.a: $(wildcard libbcrypt/*.c libbcrypt/*.h)
@@ -58,30 +58,30 @@ aes/aes_options.o:
 .PHONY += prepare 
 
 prepare:
-	echo $(shell whoami) > make.config 
+	@echo $(shell whoami) > .make.config 
 
 .PHONY += clean
 
 clean: 
-	rm -rf *.o aes/*.o aes/.aes_key.config bsdq_cache bookMan make.config;\
+	rm -rf *.o aes/*.o aes/.aes_key.config bsdq_cache bookMan .make.config;\
 	make clean -C libbcrypt/;\
 	make clean -C check_password/
 
 .PHONY += install
 
 cur_user = $(shell cat .make.config)
+root_dir=/usr/local/bookshelfdq
 
 install:
-	mkdir /usr/local/bookshelfdq 2> /dev/null;\
+	mkdir $(root_dir) 2> /dev/null;\
+	chown $(cur_user):$(cur_user) $(root_dir);\
 	cp bookMan /usr/local/bin;\
 	chown $(cur_user):$(cur_user) /usr/local/bin/bookMan
-
 
 .PHONY += uninstall
 
 server_binpath=/usr/local/bin/bsdq_server
 client_binpath=/usr/local/bin/bookMan
-root_dir=/usr/local/bookshelfdq
 
 uninstall:
 	rm -f $(client_binpath);\

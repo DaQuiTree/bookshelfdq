@@ -270,8 +270,8 @@ void ncgui_display_mainmenu_page(void)
     char greet[20] = "Welcome:  ";
     char details[80];
     char **option_ptr;
-    int menu_row = GREET_ROW + 1;
-    int menu_column = 8;
+    volatile int menu_row = GREET_ROW + 1;
+    volatile int menu_column = 8;
     
     //标题
     mvprintw(TITLE_ROW, WIN_WIDTH/2-8, "书 架 管 理 系 统");
