@@ -68,7 +68,7 @@
     make && sudo make install 
    可执行文件bsdq_server会安装到/usr/local/bin下
    
- #### 使用
+ #### 使用bsdq_server
    1. 启动mysql并创建用户bsdq及数据库bsdq_db
       
     /etc/init.d/mysqld start
@@ -84,8 +84,66 @@
   
     bsdq_server [-p] [password]
    
-### client （待更新...）
-  fbterm 解决字符屏问题<br>
-  dbm 依赖libgdbm-dev<br>
-  ncursesw libncursesws-dev<br>
-  mysql libmysqlclient-dev libmysql++-dev<br>
+### 客户端 (Ubuntu 16.04为例)
+   #### 安装依赖库
+   1. mysqlclient以及开发包
+   
+    sudo apt install libmysqlclient-dev libmysql++-dev
+    
+   2. ncurses开发包
+   
+    sudo apt install libncursesw5-dev
+   
+   3. dbm数据库开发包
+    
+    sudo apt install libncursesw-dev
+    
+   4. openssl开发包
+    
+    sudo apt install libssl-dev
+    
+   5. ldap开发包
+    
+    sudo apt install slapd ldap-utils
+   
+   #### 安装依赖文件
+   1. LDAP相关头文件
+   
+    cd bsdqclient/before_install
+    sudo cp -r openldap-2.4.47 /usr/local/
+    
+   2. cracklib-2.9.7
+
+    cd bsdqclient/before_install/cracklib-2.9.7
+    autoreconf -f -i
+    ./config
+    make && sudo make install
+    
+   #### 编译生成可执行文件bookMan
+  
+   注1：如果bsdq_server运行在远程服务器上，请修改clisrv.h中SERVER_HOSTNAME宏为远端服务器地址
+    
+   例如：
+   
+    #define SERVER_HOSTNAME (130.120.196.121)
+    
+   然后执行：
+    
+    cd bsdqclient/ 
+    make && sudo make install
+    
+   注2:编译时如遇到无法找到lldap_r和llber库，需手动执行:
+   
+    sudo ln -s 路径/liblber-2.4.so.2 路径/liblber.so
+    sudo ln -s 路径/libldap_r-2.4.so.2 路径/libldap_r.so
+    
+   #### 使用bookMan
+   
+   1.准备工作(复制对称加密文件)
+   
+    若bsdq_server在远程服务器上，请将服务器端/usr/local/bookshelfdq/.aes_key.config文件复制到本机
+   
+   2.shell下执行bookMan，开始管理你的图书吧！
+    
+    
+   
