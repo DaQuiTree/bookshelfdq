@@ -148,9 +148,9 @@
     
    ### 参考程序
     
-   [cracklib](https://github.com/cracklib/cracklib) 
-   [ppolicy-check-password](https://github.com/onyxpoint/ppolicy-check-password) 
-   [libbcrypt](https://github.com/rg3/libbcrypt)
+   [cracklib](https://github.com/cracklib/cracklib)  
+   [ppolicy-check-password](https://github.com/onyxpoint/ppolicy-check-password)  
+   [libbcrypt](https://github.com/rg3/libbcrypt)  
    
 
    
