@@ -1,0 +1,86 @@
+# translation of cracklib.pa.po to Panjabi
+# translation of cracklib.po to Panjabi
+# Copyright (C) 2005 Free Software Foundation, Inc.
+# This file is distributed under the same license as the PACKAGE package.
+#
+# Amanpreet Singh Alam[ਆਲਮ] <amanpreetalam@yahoo.com>, 2005, 2009.
+# A S Alam <aalam@users.sf.net>, 2009.
+# Jan Dittberner <jandd@debian.org>, 2016. #zanata
+# A S Alam <aalam@fedoraproject.org>, 2017. #zanata
+msgid ""
+msgstr ""
+"Project-Id-Version: cracklib 2.9.6\n"
+"Report-Msgid-Bugs-To: cracklib-devel@lists.sourceforge.net\n"
+"POT-Creation-Date: 2019-03-03 11:49-0600\n"
+"PO-Revision-Date: 2017-08-18 07:15+0000\n"
+"Last-Translator: A S Alam <aalam@fedoraproject.org>\n"
+"Language-Team: Punjabi/Panjabi <punjabi-users@lists.sf.net>\n"
+"Language: pa\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Zanata 4.6.2\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: lib/fascist.c:516
+msgid "it is based on your username"
+msgstr "ਇਹ ਤੁਹਾਡੇ ਵਰਤੋਂਕਾਰ-ਨਾਂ ਮੁਤਾਬਕ ਹੈ"
+
+#: lib/fascist.c:576
+msgid "it is based upon your password entry"
+msgstr "ਇਹ ਤੁਹਾਡੇ ਪਾਸਵਰਡ ਐਂਟਰੀ ਮੁਤਾਬਕ ਹੈ"
+
+#: lib/fascist.c:593 lib/fascist.c:601
+msgid "it is derived from your password entry"
+msgstr "ਇਹ ਤੁਹਾਡੇ ਪਾਸਵਰਡ ਐਂਟਰੀ ਤੋਂ ਬਣਾਇਆ ਗਿਆ ਹੈ"
+
+#: lib/fascist.c:613
+msgid "it is derivable from your password entry"
+msgstr "ਇਹ ਤੁਹਾਡੇ ਪਾਸਵਰਡ ਐਂਟਰੀ ਤੋਂ ਬਣਾਉਣ ਯੋਗ ਹੈ"
+
+#: lib/fascist.c:625
+msgid "it's derivable from your password entry"
+msgstr "ਇਹ ਤੁਹਾਡੇ ਪਾਸਵਰਡ ਐਂਟਰੀ ਤੋਂ ਬਣਾਉਣਯੋਗ ਹੈ"
+
+#: lib/fascist.c:683
+msgid "you are not registered in the password file"
+msgstr "ਤੁਸੀਂ ਪਾਸਵਰਡ ਫਾਇਲ 'ਚ ਰਜਿਸਟਰ ਨਹੀਂ ਹੋ"
+
+#: lib/fascist.c:718
+msgid "it is WAY too short"
+msgstr "ਇਹ ਬਹੁਤ ਹੀ ਛੋਟਾ ਹੈ"
+
+#: lib/fascist.c:723
+msgid "it is too short"
+msgstr "ਇਹ ਬਹੁਤ ਛੋਟਾ ਹੈ"
+
+#: lib/fascist.c:740
+msgid "it does not contain enough DIFFERENT characters"
+msgstr "ਇਹ ਵਿੱਚ ਲੋੜੀਦੇ*ਵੱਖਰੇ* ਅੱਖਰ ਮੌਜੂਦ ਨਹੀਂ ਹਨ"
+
+#: lib/fascist.c:754
+msgid "it is all whitespace"
+msgstr "ਇਹ ਸਿਰਫ਼ ਖਾਲੀ ਥਾਂ ਹੈ"
+
+#: lib/fascist.c:773
+msgid "it is too simplistic/systematic"
+msgstr "ਇਹ ਬਹੁਤ ਸਧਾਰਨ/ਇਕਸਾਰ ਜਿਹਾ ਹੈ"
+
+#: lib/fascist.c:778
+msgid "it looks like a National Insurance number."
+msgstr "ਇਹ ਨੈਸ਼ਨਲ ਇਨਸ਼ੋਅਰੈਂਸ ਨੰਬਰ ਵਰਗਾ ਜਾਪਦਾ ਹੈ।"
+
+#: lib/fascist.c:810
+msgid "it is based on a dictionary word"
+msgstr "ਇਹ ਡਿਕਸ਼ਨਰੀ ਸ਼ਬਦ ਉੱਤੇ ਅਧਾਰਿਤ ਹੈ"
+
+#: lib/fascist.c:829
+msgid "it is based on a (reversed) dictionary word"
+msgstr "ਇਹ (ਉਲਟ) ਡਿਕਸ਼ਨਰੀ ਸ਼ਬਦ ਉੱਤੇ ਅਧਾਰਿਤ ਹੈ"
+
+#: lib/fascist.c:874
+msgid "error loading dictionary"
+msgstr "ਡਿਕਸ਼ਨਰੀ ਲੋਡ ਕਰਨ ਦੌਰਾਨ ਗਲਤੀ"
+
+#~ msgid "it's derived from your password entry"
+#~ msgstr "ਇਹ ਤੁਹਾਡੇ ਪਾਸਵਰਡ ਐਂਟਰੀ ਤੋਂ ਬਣਾਇਆ ਗਿਆ ਹੈ"

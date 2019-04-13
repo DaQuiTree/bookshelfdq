@@ -1,4 +1,4 @@
-all: clean prepare bsdq_server#srvdbmain #bsdq_client
+all: prepare bsdq_server#srvdbmain #bsdq_client
 
 CC = gcc
 CFLAGS = -Wall -pedantic
@@ -29,10 +29,10 @@ aes/aes_options.o:$(wildcard aes/*.c aes/*.h)
 .PHONY += clean
 
 prepare:
-	echo $(shell whoami) > .make.config
+	@echo $(shell whoami) > make.config
 
 clean: 
-	rm -rf *.o bsdq_server .make.config;\
+	rm -rf *.o bsdq_server make.config;\
 	make clean -C libbcrypt/;\
 	make clean -C aes/
 
